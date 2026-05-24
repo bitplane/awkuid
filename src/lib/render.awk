@@ -62,7 +62,6 @@ function liquid_render(template,    out, rest, out_pos, tag_pos, open_pos, close
         tag = substr(rest, 1, close_pos - 1)
         trim_right = substr(tag, length(tag), 1) == "-"
         if (index(tag, "{%")) {
-            base += tag_pos + 1
             continue
         }
         tag = liquid_tag_clean(tag)

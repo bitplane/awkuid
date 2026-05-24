@@ -653,55 +653,180 @@ function liquid_html_escape(value) {
     return value
 }
 
-function liquid_date(value, arg,    fmt) {
+function liquid_date(value, arg,    fmt, epoch) {
     fmt = liquid_expression_value(liquid_filter_arg(arg, 1))
     if (value == "" || fmt == "") {
         return value
     }
-    if (value == "March 14, 2016") {
-        if (fmt == "%s") {
-            return "1457913600"
-        }
-        if (fmt == "%b %d, %y") {
-            return "Mar 14, 16"
-        }
-        if (fmt == "%%%b %d, %y") {
-            return "%Mar 14, 16"
-        }
+    if (value ~ /^[0-9][0-9]*$/) {
+        epoch = value + 0
+        liquid_epoch_to_date(epoch)
+        return liquid_date_format(fmt, epoch)
     }
-    if (value == "1152098955" && fmt == "%m/%d/%Y") {
-        return "07/05/2006"
+    if (liquid_parse_month_date(value)) {
+        epoch = liquid_date_to_epoch(liquid_date_year, liquid_date_month, liquid_date_day)
+        return liquid_date_format(fmt, epoch)
     }
     return value
 }
 
-function liquid_base64_encode(value, url_safe) {
-    if (value == "") {
-        return ""
+function liquid_parse_month_date(value,    parts, month_parts, mon) {
+    if (value !~ /^[A-Za-z]+[ \t]+[0-9][0-9]?,[ \t]+[0-9][0-9][0-9][0-9]$/) {
+        return 0
     }
-    if (value == "_#/.") {
-        return "XyMvLg=="
+    split(value, parts, /[ ,]+/)
+    mon = index("January February March April May June July August September October November December", parts[1])
+    if (!mon) {
+        return 0
     }
-    if (value == "5") {
-        return "NQ=="
-    }
-    if (value == "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890 !@#$%^&*()-=_+/?.:;[]{}\\|") {
-        return url_safe ? "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXogQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVogMTIzNDU2Nzg5MCAhQCMkJV4mKigpLT1fKy8_Ljo7W117fVx8" : "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXogQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVogMTIzNDU2Nzg5MCAhQCMkJV4mKigpLT1fKy8/Ljo7W117fVx8"
-    }
-    return value
+    liquid_date_month = split(substr("January February March April May June July August September October November December", 1, mon), month_parts, " ")
+    liquid_date_day = parts[2] + 0
+    liquid_date_year = parts[3] + 0
+    return liquid_date_day >= 1 && liquid_date_day <= liquid_days_in_month(liquid_date_year, liquid_date_month)
 }
 
-function liquid_base64_decode(value, url_safe) {
-    if (value == "") {
-        return ""
+function liquid_date_format(fmt, epoch,    out, i, ch, nxt) {
+    out = ""
+    for (i = 1; i <= length(fmt); i++) {
+        ch = substr(fmt, i, 1)
+        if (ch != "%") {
+            out = out ch
+            continue
+        }
+        i++
+        nxt = substr(fmt, i, 1)
+        if (nxt == "%") {
+            out = out "%"
+        } else if (nxt == "b") {
+            out = out liquid_month_abbrev(liquid_date_month)
+        } else if (nxt == "d") {
+            out = out sprintf("%02d", liquid_date_day)
+        } else if (nxt == "m") {
+            out = out sprintf("%02d", liquid_date_month)
+        } else if (nxt == "y") {
+            out = out sprintf("%02d", liquid_date_year % 100)
+        } else if (nxt == "Y") {
+            out = out sprintf("%04d", liquid_date_year)
+        } else if (nxt == "s") {
+            out = out sprintf("%d", epoch)
+        } else {
+            out = out "%" nxt
+        }
     }
-    if (value == "XyMvLg==") {
-        return "_#/."
+    return out
+}
+
+function liquid_date_to_epoch(year, month, day,    y, m, days) {
+    days = 0
+    for (y = 1970; y < year; y++) {
+        days += liquid_is_leap_year(y) ? 366 : 365
     }
-    if (value == "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXogQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVogMTIzNDU2Nzg5MCAhQCMkJV4mKigpLT1fKy8/Ljo7W117fVx8" || value == "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXogQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVogMTIzNDU2Nzg5MCAhQCMkJV4mKigpLT1fKy8_Ljo7W117fVx8") {
-        return "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890 !@#$%^&*()-=_+/?.:;[]{}\\|"
+    for (m = 1; m < month; m++) {
+        days += liquid_days_in_month(year, m)
     }
-    return value
+    days += day - 1
+    return days * 86400
+}
+
+function liquid_epoch_to_date(epoch,    days, y, dim) {
+    days = int(epoch / 86400)
+    y = 1970
+    while (days >= (liquid_is_leap_year(y) ? 366 : 365)) {
+        days -= liquid_is_leap_year(y) ? 366 : 365
+        y++
+    }
+    liquid_date_year = y
+    liquid_date_month = 1
+    while (days >= (dim = liquid_days_in_month(liquid_date_year, liquid_date_month))) {
+        days -= dim
+        liquid_date_month++
+    }
+    liquid_date_day = days + 1
+}
+
+function liquid_is_leap_year(year) {
+    return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+}
+
+function liquid_days_in_month(year, month) {
+    if (month == 2) {
+        return liquid_is_leap_year(year) ? 29 : 28
+    }
+    return month == 4 || month == 6 || month == 9 || month == 11 ? 30 : 31
+}
+
+function liquid_month_abbrev(month) {
+    return substr("JanFebMarAprMayJunJulAugSepOctNovDec", (month - 1) * 3 + 1, 3)
+}
+
+function liquid_base64_encode(value, url_safe,    alphabet, out, i, b1, b2, b3, n, c1, c2, c3, c4) {
+    alphabet = url_safe ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_" : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    out = ""
+    for (i = 1; i <= length(value); i += 3) {
+        b1 = liquid_ord(substr(value, i, 1))
+        b2 = i + 1 <= length(value) ? liquid_ord(substr(value, i + 1, 1)) : 0
+        b3 = i + 2 <= length(value) ? liquid_ord(substr(value, i + 2, 1)) : 0
+        n = b1 * 65536 + b2 * 256 + b3
+        c1 = int(n / 262144) % 64
+        c2 = int(n / 4096) % 64
+        c3 = int(n / 64) % 64
+        c4 = n % 64
+        out = out substr(alphabet, c1 + 1, 1) substr(alphabet, c2 + 1, 1)
+        out = out (i + 1 <= length(value) ? substr(alphabet, c3 + 1, 1) : "=")
+        out = out (i + 2 <= length(value) ? substr(alphabet, c4 + 1, 1) : "=")
+    }
+    return out
+}
+
+function liquid_base64_decode(value, url_safe,    out, i, ch, vals, count, v1, v2, v3, v4, n, pad) {
+    out = ""
+    count = 0
+    pad = 0
+    for (i = 1; i <= length(value); i++) {
+        ch = substr(value, i, 1)
+        if (ch ~ /[ \t\r\n]/) {
+            continue
+        }
+        if (ch == "=") {
+            vals[++count] = 0
+            pad++
+        } else {
+            vals[++count] = liquid_base64_value(ch)
+        }
+        if (count == 4) {
+            v1 = vals[1]; v2 = vals[2]; v3 = vals[3]; v4 = vals[4]
+            n = v1 * 262144 + v2 * 4096 + v3 * 64 + v4
+            out = out sprintf("%c", int(n / 65536) % 256)
+            if (pad < 2) {
+                out = out sprintf("%c", int(n / 256) % 256)
+            }
+            if (pad < 1) {
+                out = out sprintf("%c", n % 256)
+            }
+            count = 0
+            pad = 0
+        }
+    }
+    return out
+}
+
+function liquid_base64_value(ch) {
+    if (ch >= "A" && ch <= "Z") {
+        return index("ABCDEFGHIJKLMNOPQRSTUVWXYZ", ch) - 1
+    }
+    if (ch >= "a" && ch <= "z") {
+        return index("abcdefghijklmnopqrstuvwxyz", ch) + 25
+    }
+    if (ch >= "0" && ch <= "9") {
+        return index("0123456789", ch) + 51
+    }
+    if (ch == "+" || ch == "-") {
+        return 62
+    }
+    if (ch == "/" || ch == "_") {
+        return 63
+    }
+    return 0
 }
 
 function liquid_html_escape_once(value) {
@@ -719,7 +844,7 @@ function liquid_html_escape_once(value) {
     return value
 }
 
-function liquid_url_encode(value,    i, ch, out) {
+function liquid_url_encode(value,    i, ch, out, n) {
     out = ""
     for (i = 1; i <= length(value); i++) {
         ch = substr(value, i, 1)
@@ -727,12 +852,9 @@ function liquid_url_encode(value,    i, ch, out) {
             out = out ch
         } else if (ch == " ") {
             out = out "+"
-        } else if (ch == "@") {
-            out = out "%40"
-        } else if (ch == "!") {
-            out = out "%21"
         } else {
-            out = out ch
+            n = liquid_ord(ch)
+            out = out "%" substr("0123456789ABCDEF", int(n / 16) + 1, 1) substr("0123456789ABCDEF", (n % 16) + 1, 1)
         }
     }
     return out
@@ -762,6 +884,17 @@ function liquid_hex_value(hex,    i, ch, n, v) {
         n = n * 16 + v
     }
     return n
+}
+
+function liquid_ord(ch,    i, c) {
+    if (!liquid_ord_ready) {
+        for (i = 1; i < 256; i++) {
+            c = sprintf("%c", i)
+            liquid_ord_map[c] = i
+        }
+        liquid_ord_ready = 1
+    }
+    return liquid_ord_map[ch] + 0
 }
 
 function liquid_string_replace_first(value, from, to,    pos) {
@@ -1520,53 +1653,11 @@ function liquid_condition(expr,    op, pos, op_len, left, right, right_expr, lef
         }
         return liquid_condition(substr(expr, 1, pos - 1)) && liquid_condition(substr(expr, pos + 5))
     }
-    op = ""
-    pos = index(expr, " contains ")
-    if (pos) {
-        op = "contains"
+    pos = liquid_find_condition_operator(expr)
+    op = liquid_condition_op
+    op_len = length(op)
+    if (op == "contains") {
         op_len = length(" contains ")
-    }
-    if (!pos) {
-        pos = index(expr, ">=")
-        if (pos) {
-            op = ">="
-            op_len = length(op)
-        }
-    }
-    if (!pos) {
-        pos = index(expr, "<=")
-        if (pos) {
-            op = "<="
-            op_len = length(op)
-        }
-    }
-    if (!pos) {
-        pos = index(expr, "==")
-        if (pos) {
-            op = "=="
-            op_len = length(op)
-        }
-    }
-    if (!pos) {
-        pos = index(expr, "!=")
-        if (pos) {
-            op = "!="
-            op_len = length(op)
-        }
-    }
-    if (!pos) {
-        pos = index(expr, ">")
-        if (pos) {
-            op = ">"
-            op_len = length(op)
-        }
-    }
-    if (!pos) {
-        pos = index(expr, "<")
-        if (pos) {
-            op = "<"
-            op_len = length(op)
-        }
     }
     if (pos) {
         left = substr(expr, 1, pos - 1)
@@ -1660,6 +1751,37 @@ function liquid_condition(expr,    op, pos, op_len, left, right, right_expr, lef
         return 1
     }
     return left_value != ""
+}
+
+function liquid_find_condition_operator(expr,    i, ch, quote, two) {
+    liquid_condition_op = ""
+    for (i = 1; i <= length(expr); i++) {
+        ch = substr(expr, i, 1)
+        if (quote != "") {
+            if (ch == quote) {
+                quote = ""
+            }
+            continue
+        }
+        if (ch == "\"" || ch == "'") {
+            quote = ch
+            continue
+        }
+        if (substr(expr, i, length(" contains ")) == " contains ") {
+            liquid_condition_op = "contains"
+            return i
+        }
+        two = substr(expr, i, 2)
+        if (two == ">=" || two == "<=" || two == "==" || two == "!=") {
+            liquid_condition_op = two
+            return i
+        }
+        if (ch == ">" || ch == "<") {
+            liquid_condition_op = ch
+            return i
+        }
+    }
+    return 0
 }
 
 function liquid_first_logical_operator(expr,    i, ch, quote, word) {

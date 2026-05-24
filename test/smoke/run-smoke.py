@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+import argparse
+import pathlib
+import subprocess
+import sys
+import tempfile
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+ENGINE = ROOT / "build/awkuid"
+
+EVENTS = "DOC_START\t0\nMAP_START\t0\t\ttag:yaml.org,2002:map\t\nMAP_END\t0\t\nDOC_END\t0\n"
+
+CASES = [
+    ('{{ "hello" | base64_encode }}', "aGVsbG8="),
+    ('{{ "Zm9v" | base64_decode }}', "foo"),
+    ('{{ "January 1, 2000" | date: "%b %d, %y" }}', "Jan 01, 00"),
+    ('{{ "#/! @" | url_encode }}', "%23%2F%21+%40"),
+    ('{% if "a>b" > "a" %}yes{% else %}no{% endif %}', "yes"),
+]
+
+
+def render(awk, template):
+    with tempfile.TemporaryDirectory(prefix="awkuid-smoke.") as tmp:
+        path = pathlib.Path(tmp) / "template.liquid"
+        path.write_text(template)
+        proc = subprocess.run(
+            [awk, "-f", str(ENGINE), str(path)],
+            input=EVENTS.encode(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    return proc.returncode, proc.stdout.decode(), proc.stderr.decode()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--awk", default="awk")
+    args = parser.parse_args()
+
+    failed = 0
+    for template, expected in CASES:
+        code, out, err = render(args.awk, template)
+        if code != 0 or out != expected:
+            failed += 1
+            print(f"FAIL smoke: {template}", file=sys.stderr)
+            print(f"  expected: {expected!r}", file=sys.stderr)
+            print(f"  actual:   {out!r}", file=sys.stderr)
+            if err:
+                print(err, file=sys.stderr)
+    print(f"smoke: {len(CASES) - failed} passed, {failed} failed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

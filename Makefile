@@ -12,11 +12,15 @@ help: ## Show this help.
 	@awk 'BEGIN { FS = ":.*## " } /^[A-Za-z0-9_.-]+:.*## / { printf "%-20s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 .PHONY: test
-test: build lint golden ## Run lint and the enforced golden cases.
+test: build lint golden smoke ## Run lint, smoke checks, and the enforced golden cases.
 
 .PHONY: golden
 golden: build ## Enforce the golden-liquid core list (test/golden/golden-core.txt).
 	$(PYTHON) test/golden/run-golden.py --awk "$(AWK)" --core test/golden/golden-core.txt
+
+.PHONY: smoke
+smoke: build ## Run focused regression checks outside the golden-liquid corpus.
+	$(PYTHON) test/smoke/run-smoke.py --awk "$(AWK)"
 
 .PHONY: progress
 progress: build ## Report pass rate across the whole golden-liquid corpus.
