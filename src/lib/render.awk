@@ -551,7 +551,16 @@ function liquid_partial_isolate(    k, keep_values, keep_paths) {
     }
 }
 
-function liquid_partial_name(text,    first, value) {
+function liquid_partial_name(text,    first, value, end) {
+    text = liquid_trim(text)
+    if (substr(text, 1, 2) == "{{") {
+        end = index(text, "}}")
+        if (!end) {
+            return ""
+        }
+        value = substr(text, 3, end - 3)
+        return liquid_expression_value(liquid_trim(value))
+    }
     split(text, first, /[ \t\r\n,]+/)
     value = first[1]
     if (value ~ /^["']/) {
@@ -560,12 +569,17 @@ function liquid_partial_name(text,    first, value) {
     return liquid_expression_value(value)
 }
 
-function liquid_partial_args(text,    rest, parts, count, i, part, colon, name, expr, value, path) {
+function liquid_partial_args(text,    rest, parts, count, i, part, colon, name, expr, value, path, include_path, include_child) {
     rest = text
     sub(/^[^ \t\r\n,]+/, "", rest)
     sub(/^[ \t\r\n]*/, "", rest)
     sub(/^,/, "", rest)
     sub(/^[ \t\r\n]*/, "", rest)
+    include_path = "\034include" (++liquid_include_counter)
+    liquid_context_type[include_path] = "map"
+    liquid_local_path["include"] = include_path
+    liquid_local_value["include"] = ""
+    liquid_partial_arg_names["include"] = 1
     count = split(rest, parts, ",")
     for (i = 1; i <= count; i++) {
         part = liquid_trim(parts[i])
@@ -579,6 +593,9 @@ function liquid_partial_args(text,    rest, parts, count, i, part, colon, name, 
         } else {
             colon = index(part, ":")
             if (!colon) {
+                colon = index(part, "=")
+            }
+            if (!colon) {
                 continue
             }
             name = liquid_trim(substr(part, 1, colon - 1))
@@ -591,6 +608,10 @@ function liquid_partial_args(text,    rest, parts, count, i, part, colon, name, 
         liquid_local_path[name] = path
         liquid_partial_arg_value[name] = liquid_local_value[name]
         liquid_partial_arg_path[name] = liquid_local_path[name]
+        include_child = liquid_context_child(include_path, name)
+        liquid_context_type[include_child] = "scalar"
+        liquid_context_value[include_child] = value
+        liquid_context_note_child(include_child)
     }
 }
 
