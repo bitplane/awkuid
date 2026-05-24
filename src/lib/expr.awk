@@ -47,13 +47,18 @@ function liquid_expression_value(expr,    pipe, next_pipe, colon, value, filter,
     }
     liquid_value_path = ""
     liquid_value_literal = 0
+    liquid_value_quoted = 0
+    liquid_value_defined = 0
     if (expr == "blank" || expr == "empty" || expr == "nil" || expr == "null") {
+        liquid_value_literal = 1
         return ""
     }
     if (expr == "true") {
+        liquid_value_literal = 1
         return "true"
     }
     if (expr == "false") {
+        liquid_value_literal = 1
         return "false"
     }
     if (expr ~ /^\([ \t\r\n]*[^()]+[ \t\r\n]*[.][.][ \t\r\n]*[^()]+[ \t\r\n]*\)$/) {
@@ -67,6 +72,7 @@ function liquid_expression_value(expr,    pipe, next_pipe, colon, value, filter,
     }
     if (expr ~ /^["']/) {
         liquid_value_literal = 1
+        liquid_value_quoted = 1
         return liquid_unquote(expr)
     }
     liquid_value_path = liquid_expression_path(expr)
@@ -94,74 +100,101 @@ function liquid_find_unquoted(text, needle,    i, ch, quote) {
     return 0
 }
 
-function liquid_apply_filter(value, filter, arg, path,    sep, n, child, right, num) {
+function liquid_error() {
+    liquid_had_error = 1
+    return ""
+}
+
+function liquid_apply_filter(value, filter, arg, path,    sep, n, child, right, num, first_arg, second_arg, start, count) {
     if (filter == "upcase") {
+        if (arg != "") { return liquid_error() }
         return toupper(value)
     }
     if (filter == "downcase") {
+        if (arg != "") { return liquid_error() }
         return tolower(value)
     }
     if (filter == "strip") {
+        if (arg != "") { return liquid_error() }
         return liquid_trim(value)
     }
     if (filter == "squish") {
+        if (arg != "") { return liquid_error() }
         gsub(/[ \t\r\n]+/, " ", value)
         return liquid_trim(value)
     }
     if (filter == "lstrip") {
+        if (arg != "") { return liquid_error() }
         sub(/^[ \t\r\n]+/, "", value)
         return value
     }
     if (filter == "rstrip") {
+        if (arg != "") { return liquid_error() }
         sub(/[ \t\r\n]+$/, "", value)
         return value
     }
     if (filter == "strip_newlines") {
+        if (arg != "") { return liquid_error() }
         gsub(/[\r\n]/, "", value)
         return value
     }
     if (filter == "newline_to_br") {
+        if (arg != "") { return liquid_error() }
         gsub(/\r\n/, "\n", value)
         gsub(/\n/, "<br />\n", value)
         return value
     }
     if (filter == "capitalize") {
+        if (arg != "") { return liquid_error() }
         return length(value) ? toupper(substr(value, 1, 1)) substr(value, 2) : value
     }
     if (filter == "escape") {
+        if (arg != "") { return liquid_error() }
         return liquid_html_escape(value)
     }
     if (filter == "escape_once") {
+        if (arg != "") { return liquid_error() }
         return liquid_html_escape_once(value)
     }
     if (filter == "url_encode") {
+        if (arg != "") { return liquid_error() }
         return liquid_url_encode(value)
     }
     if (filter == "url_decode") {
+        if (arg != "") { return liquid_error() }
         return liquid_url_decode(value)
     }
     if (filter == "date") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         return liquid_date(value, arg)
     }
     if (filter == "base64_encode") {
+        if (arg != "") { return liquid_error() }
         return liquid_base64_encode(value, 0)
     }
     if (filter == "base64_url_safe_encode") {
+        if (arg != "") { return liquid_error() }
         return liquid_base64_encode(value, 1)
     }
     if (filter == "base64_decode") {
+        if (arg != "") { return liquid_error() }
+        if (liquid_value_literal && !liquid_value_quoted && liquid_number_is_numeric_shape(value)) { return liquid_error() }
         return liquid_base64_decode(value, 0)
     }
     if (filter == "base64_url_safe_decode") {
+        if (arg != "") { return liquid_error() }
+        if (liquid_value_literal && !liquid_value_quoted && liquid_number_is_numeric_shape(value)) { return liquid_error() }
         return liquid_base64_decode(value, 1)
     }
     if (filter == "size") {
+        if (arg != "") { return liquid_error() }
         if (path != "") {
             return liquid_context_size(path)
         }
         return length(value)
     }
     if (filter == "join") {
+        if (liquid_count_filter_args(arg) > 1) { return liquid_error() }
         sep = " "
         if (arg != "") {
             sep = liquid_expression_value(arg)
@@ -172,9 +205,11 @@ function liquid_apply_filter(value, filter, arg, path,    sep, n, child, right, 
         return value
     }
     if (filter == "split") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         return liquid_split(value, arg)
     }
     if (filter == "reverse") {
+        if (arg != "") { return liquid_error() }
         return liquid_reverse(value, path)
     }
     if (filter == "sort") {
@@ -184,21 +219,26 @@ function liquid_apply_filter(value, filter, arg, path,    sep, n, child, right, 
         return liquid_sort(value, path, 1, arg)
     }
     if (filter == "compact") {
+        if (liquid_count_filter_args(arg) > 1) { return liquid_error() }
         return liquid_compact(value, path, arg)
     }
     if (filter == "uniq") {
+        if (liquid_count_filter_args(arg) > 1) { return liquid_error() }
         return liquid_uniq(value, path, arg)
     }
     if (filter == "concat") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         return liquid_concat(value, path, arg)
     }
     if (filter == "map") {
         return liquid_map(value, path, arg)
     }
     if (filter == "where") {
+        if (liquid_count_filter_args(arg) < 1 || liquid_count_filter_args(arg) > 2) { return liquid_error() }
         return liquid_where(value, path, arg)
     }
     if (filter == "reject") {
+        if (liquid_count_filter_args(arg) < 1 || liquid_count_filter_args(arg) > 2) { return liquid_error() }
         return liquid_reject(value, path, arg)
     }
     if (filter == "has") {
@@ -215,6 +255,10 @@ function liquid_apply_filter(value, filter, arg, path,    sep, n, child, right, 
             return liquid_context_string(liquid_context_child(path, 0))
         }
         if (path != "") {
+            if (liquid_context_type[path] == "map") {
+                liquid_value_path = liquid_map_entry_pair(path, 0)
+                return ""
+            }
             return ""
         }
         return substr(value, 1, 1)
@@ -233,95 +277,146 @@ function liquid_apply_filter(value, filter, arg, path,    sep, n, child, right, 
         return substr(value, length(value), 1)
     }
     if (filter == "default") {
+        if (liquid_count_filter_args(arg) > 2) { return liquid_error() }
         return liquid_default_filter(value, path, arg)
     }
     if (filter == "plus") {
+        if (liquid_count_filter_args(arg) > 1) { return liquid_error() }
         right = liquid_expression_value(arg)
-        return liquid_number_string((value + 0) + (right + 0), value, right)
+        return liquid_number_string((value + 0) + (right + 0), value, right, "", 1)
     }
     if (filter == "minus") {
+        if (liquid_count_filter_args(arg) > 1) { return liquid_error() }
         right = liquid_expression_value(arg)
-        return liquid_number_string((value + 0) - (right + 0), value, right)
+        return liquid_number_string((value + 0) - (right + 0), value, right, "", 1)
     }
     if (filter == "times") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         right = liquid_expression_value(arg)
-        return liquid_number_string((value + 0) * (right + 0), value, right)
+        return liquid_number_string((value + 0) * (right + 0), value, right, "", 1)
     }
     if (filter == "divided_by") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         right = liquid_expression_value(arg)
-        if ((right + 0) == 0) {
-            return ""
+        if (!liquid_number_is_numeric_shape(right) || (right + 0) == 0) {
+            return liquid_error()
         }
         return liquid_number_string((value + 0) / (right + 0), value, right, 16, 1)
     }
     if (filter == "modulo") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         right = liquid_expression_value(arg)
-        if ((right + 0) == 0) {
-            return ""
+        if (!liquid_number_is_numeric_shape(right) || (right + 0) == 0) {
+            return liquid_error()
         }
         return liquid_number_string((value + 0) % (right + 0), value, right, 16, 1)
     }
     if (filter == "round") {
+        if (liquid_count_filter_args(arg) > 1) { return liquid_error() }
         right = (arg == "" ? 0 : int(liquid_expression_value(arg) + 0))
         return liquid_round(value + 0, right)
     }
     if (filter == "abs") {
+        if (arg != "") { return liquid_error() }
         num = value + 0
         return liquid_number_string(num < 0 ? -num : num, value, "")
     }
     if (filter == "ceil") {
+        if (arg != "") { return liquid_error() }
         num = value + 0
         return sprintf("%d", (num == int(num) || num < 0) ? int(num) : int(num) + 1)
     }
     if (filter == "floor") {
+        if (arg != "") { return liquid_error() }
         num = value + 0
         return sprintf("%d", (num == int(num) || num >= 0) ? int(num) : int(num) - 1)
     }
     if (filter == "at_least") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         right = liquid_expression_value(arg) + 0
         num = value + 0
         return liquid_number_string(num < right ? right : num, value, right)
     }
     if (filter == "at_most") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         right = liquid_expression_value(arg) + 0
         num = value + 0
         return liquid_number_string(num > right ? right : num, value, right)
     }
     if (filter == "append") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         return value liquid_expression_value(liquid_filter_arg(arg, 1))
     }
     if (filter == "prepend") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         return liquid_expression_value(liquid_filter_arg(arg, 1)) value
     }
     if (filter == "remove") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         return liquid_string_replace(value, liquid_expression_value(liquid_filter_arg(arg, 1)), "")
     }
     if (filter == "remove_first") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         return liquid_string_replace_first(value, liquid_expression_value(liquid_filter_arg(arg, 1)), "")
     }
     if (filter == "remove_last") {
+        if (liquid_count_filter_args(arg) != 1) { return liquid_error() }
         return liquid_string_replace_last(value, liquid_expression_value(liquid_filter_arg(arg, 1)), "")
     }
     if (filter == "replace") {
+        if (liquid_count_filter_args(arg) < 1 || liquid_count_filter_args(arg) > 2) { return liquid_error() }
+        if (path != "" && liquid_context_type[path] != "scalar") {
+            value = liquid_context_string(path)
+        }
         return liquid_string_replace(value, liquid_expression_value(liquid_filter_arg(arg, 1)), liquid_expression_value(liquid_filter_arg(arg, 2)))
     }
     if (filter == "replace_first") {
+        if (liquid_count_filter_args(arg) < 1 || liquid_count_filter_args(arg) > 2) { return liquid_error() }
         return liquid_string_replace_first(value, liquid_expression_value(liquid_filter_arg(arg, 1)), liquid_expression_value(liquid_filter_arg(arg, 2)))
     }
     if (filter == "replace_last") {
+        if (liquid_count_filter_args(arg) < 2 || liquid_count_filter_args(arg) > 2) { return liquid_error() }
         return liquid_string_replace_last(value, liquid_expression_value(liquid_filter_arg(arg, 1)), liquid_expression_value(liquid_filter_arg(arg, 2)))
     }
     if (filter == "strip_html") {
+        if (arg != "") { return liquid_error() }
         return liquid_strip_html(value)
     }
     if (filter == "slice") {
-        return liquid_slice(value, path, int(liquid_expression_value(liquid_filter_arg(arg, 1)) + 0), liquid_filter_arg(arg, 2) == "" ? 1 : int(liquid_expression_value(liquid_filter_arg(arg, 2)) + 0))
+        if (liquid_count_filter_args(arg) < 1 || liquid_count_filter_args(arg) > 2) { return liquid_error() }
+        first_arg = liquid_expression_value(liquid_filter_arg(arg, 1))
+        if (!liquid_value_defined && !liquid_value_literal && liquid_value_path != "") { return liquid_error() }
+        if (!liquid_number_is_integer_shape(first_arg)) { return liquid_error() }
+        start = int(first_arg + 0)
+        count = 1
+        if (liquid_count_filter_args(arg) == 2) {
+            second_arg = liquid_expression_value(liquid_filter_arg(arg, 2))
+            if (liquid_value_defined || liquid_value_literal || liquid_value_path == "") {
+                if (!liquid_number_is_integer_shape(second_arg)) { return liquid_error() }
+                count = int(second_arg + 0)
+            }
+        }
+        return liquid_slice(value, path, start, count)
     }
     if (filter == "truncate") {
-        return liquid_truncate(value, liquid_filter_arg(arg, 1) == "" ? 50 : int(liquid_expression_value(liquid_filter_arg(arg, 1)) + 0), liquid_filter_arg(arg, 2) == "" ? "..." : liquid_expression_value(liquid_filter_arg(arg, 2)))
+        if (liquid_count_filter_args(arg) > 2) { return liquid_error() }
+        if (liquid_filter_arg(arg, 1) != "") {
+            first_arg = liquid_expression_value(liquid_filter_arg(arg, 1))
+            if (!liquid_value_defined && !liquid_value_literal && liquid_value_path != "") { return liquid_error() }
+        } else {
+            first_arg = 50
+        }
+        return liquid_truncate(value, int(first_arg + 0), liquid_filter_arg(arg, 2) == "" ? "..." : liquid_expression_value(liquid_filter_arg(arg, 2)))
     }
     if (filter == "truncatewords") {
-        return liquid_truncate_words(value, liquid_filter_arg(arg, 1) == "" ? 15 : int(liquid_expression_value(liquid_filter_arg(arg, 1)) + 0), liquid_filter_arg(arg, 2) == "" ? "..." : liquid_expression_value(liquid_filter_arg(arg, 2)))
+        if (liquid_count_filter_args(arg) > 2) { return liquid_error() }
+        if (liquid_filter_arg(arg, 1) != "") {
+            first_arg = liquid_expression_value(liquid_filter_arg(arg, 1))
+            if (!liquid_value_defined && !liquid_value_literal && liquid_value_path != "") { return liquid_error() }
+        } else {
+            first_arg = 15
+        }
+        return liquid_truncate_words(value, int(first_arg + 0), liquid_filter_arg(arg, 2) == "" ? "..." : liquid_expression_value(liquid_filter_arg(arg, 2)))
     }
     if (filter == "sum") {
         return liquid_sum(path, liquid_filter_arg(arg, 1))
@@ -379,9 +474,13 @@ function liquid_default_filter(value, path, arg,    fallback_expr, allow_false, 
     return value
 }
 
-function liquid_string_replace(value, from, to,    out, pos) {
+function liquid_string_replace(value, from, to,    out, pos, i) {
     if (from == "") {
-        return value
+        out = to
+        for (i = 1; i <= length(value); i++) {
+            out = out substr(value, i, 1) to
+        }
+        return out
     }
     out = ""
     while ((pos = index(value, from)) > 0) {
@@ -557,6 +656,9 @@ function liquid_split(value, arg,    sep, arg_expr, path, count, pos, part, i) {
         liquid_context_len[path] = 1
         return ""
     }
+    if (sep == " ") {
+        gsub(/[ \t\r\n]+/, " ", value)
+    }
     if (sep == "") {
         for (i = 1; i <= length(value); i++) {
             liquid_split_append(path, liquid_context_len[path], substr(value, i, 1))
@@ -666,8 +768,21 @@ function liquid_sort(value, source_path, natural, arg,    path, n, i, j, tmp, tm
 }
 
 function liquid_compact(value, source_path, arg,    path, i, child, text, prop, target) {
-    if (source_path == "" || liquid_context_type[source_path] != "seq") {
+    if (source_path == "" && value == "") {
         return value
+    }
+    if (source_path == "" || liquid_context_type[source_path] != "seq") {
+        path = "\034compact" (++liquid_compact_id)
+        liquid_value_path = path
+        liquid_context_type[path] = "seq"
+        liquid_context_len[path] = 0
+        liquid_context_child_count[path] = 0
+        if (source_path != "" && liquid_context_type[source_path] != "scalar") {
+            liquid_context_temp_ref(path, 0, source_path)
+        } else if (value != "") {
+            liquid_split_append(path, 0, value)
+        }
+        return ""
     }
     prop = liquid_filter_arg(arg, 1)
     if (prop != "") {
@@ -727,6 +842,9 @@ function liquid_uniq(value, source_path, arg,    path, i, child, text, seen, pro
 function liquid_concat(value, source_path, arg,    right, right_path, path) {
     right = liquid_expression_value(arg)
     right_path = liquid_value_path
+    if (right_path == "" || (liquid_context_type[right_path] != "seq" && liquid_context_type[right_path] != "map")) {
+        return liquid_error()
+    }
     path = "\034concat" (++liquid_concat_id)
     liquid_value_path = path
     liquid_context_type[path] = "seq"
@@ -756,6 +874,9 @@ function liquid_concat_append(out_path, source_path, value,    i, child) {
 
 function liquid_map(value, source_path, arg,    prop, path) {
     if (source_path == "" || (liquid_context_type[source_path] != "seq" && liquid_context_type[source_path] != "map")) {
+        if (value != "") {
+            return liquid_error()
+        }
         return value
     }
     prop = liquid_filter_arg(arg, 1)
@@ -781,6 +902,10 @@ function liquid_map_append(out_path, source_path, prop,    i, child, target) {
         }
         return
     }
+    if (liquid_context_type[source_path] != "map") {
+        liquid_error()
+        return
+    }
     target = liquid_context_child(source_path, prop)
     if (liquid_context_type[target] == "map" || liquid_context_type[target] == "seq") {
         liquid_context_temp_ref(out_path, liquid_context_len[out_path], target)
@@ -791,6 +916,9 @@ function liquid_map_append(out_path, source_path, prop,    i, child, target) {
 
 function liquid_where(value, source_path, arg,    prop, want_expr, want, has_want, path, i, child, target, text, matched) {
     if (source_path == "" || liquid_context_type[source_path] != "seq") {
+        if (value != "") {
+            return liquid_error()
+        }
         return value
     }
     prop = liquid_filter_arg(arg, 1)
@@ -801,6 +929,9 @@ function liquid_where(value, source_path, arg,    prop, want_expr, want, has_wan
     has_want = want_expr != ""
     if (has_want) {
         want = liquid_expression_value(want_expr)
+        if (!liquid_value_defined && !liquid_value_literal) {
+            want_expr = "nil"
+        }
     }
     path = "\034where" (++liquid_where_id)
     liquid_value_path = path
@@ -839,6 +970,9 @@ function liquid_reject(value, source_path, arg,    prop, want_expr, want, has_wa
     has_want = want_expr != ""
     if (has_want) {
         want = liquid_expression_value(want_expr)
+        if (!liquid_value_defined && !liquid_value_literal) {
+            want_expr = "nil"
+        }
     }
     path = "\034reject" (++liquid_reject_id)
     liquid_value_path = path
@@ -853,6 +987,9 @@ function liquid_reject(value, source_path, arg,    prop, want_expr, want, has_wa
 }
 
 function liquid_reject_append(out_path, source_path, value, prop, has_want, want, want_expr,    i, child) {
+    if (source_path != "" && (!(source_path in liquid_context_type) || liquid_context_type[source_path] == "")) {
+        return
+    }
     if (source_path != "" && liquid_context_type[source_path] == "seq") {
         for (i = 0; i < liquid_context_len[source_path]; i++) {
             child = liquid_context_child(source_path, i)
@@ -1003,7 +1140,10 @@ function liquid_truncate_words(value, max, ending,    words, count, i, out) {
     gsub(/[ \t\r\n]+/, " ", value)
     value = liquid_trim(value)
     count = split(value, words, " ")
-    if (max <= 0 || count <= max) {
+    if (max <= 0) {
+        max = 1
+    }
+    if (count <= max) {
         return value
     }
     out = ""
@@ -1021,10 +1161,26 @@ function liquid_sum(path, property,    i, child, target, total) {
     property = liquid_unquote(property)
     for (i = 0; i < liquid_context_len[path]; i++) {
         child = liquid_context_child(path, i)
-        target = property == "" ? child : liquid_context_child(child, property)
-        total += liquid_context_scalar(target) + 0
+        total += liquid_sum_value(child, property)
     }
     return liquid_number_string(total, "", "")
+}
+
+function liquid_sum_value(path, property,    i, child, target, total) {
+    if (liquid_context_type[path] == "seq" && property == "") {
+        total = 0
+        for (i = 0; i < liquid_context_len[path]; i++) {
+            child = liquid_context_child(path, i)
+            total += liquid_sum_value(child, property)
+        }
+        return total
+    }
+    if (property != "" && liquid_context_type[path] != "map") {
+        liquid_error()
+        return 0
+    }
+    target = property == "" ? path : liquid_context_child(path, property)
+    return liquid_context_scalar(target) + 0
 }
 
 function liquid_round(number, precision,    scale, shifted) {
@@ -1065,6 +1221,17 @@ function liquid_number_is_float_shape(value,    text) {
         return text ~ /[.eE]/
     }
     return 0
+}
+
+function liquid_number_is_numeric_shape(value,    text) {
+    text = liquid_trim(value)
+    return text ~ /^[-+]?([0-9][0-9]*([.][0-9][0-9]*)?|[.][0-9][0-9]*)([eE][-+]?[0-9][0-9]*)?$/ ||
+        text ~ /^[-+]?[0-9][0-9]*[eE][-+]?[0-9][0-9]*$/
+}
+
+function liquid_number_is_integer_shape(value,    text) {
+    text = liquid_trim(value)
+    return text ~ /^[-+]?[0-9][0-9]*$/
 }
 
 function liquid_make_range(expr,    body, dots, left, right, start, stop, path, i, child) {
@@ -1116,6 +1283,11 @@ function liquid_special_property(expr,    prop, parent_expr, parent_path, n) {
             liquid_special_value = liquid_context_string(liquid_value_path)
             return 1
         }
+        if (liquid_context_type[parent_path] == "map") {
+            liquid_value_path = liquid_map_entry_pair(parent_path, 0)
+            liquid_special_value = liquid_context_string(liquid_value_path)
+            return 1
+        }
     }
     if (prop == "last") {
         if (liquid_context_type[parent_path] == "scalar") {
@@ -1131,6 +1303,20 @@ function liquid_special_property(expr,    prop, parent_expr, parent_path, n) {
         }
     }
     return 0
+}
+
+function liquid_map_entry_pair(source_path, idx,    path, key) {
+    path = "\034mapentry" (++liquid_map_entry_id)
+    liquid_context_type[path] = "seq"
+    liquid_context_len[path] = 0
+    liquid_context_child_count[path] = 0
+    if (idx >= liquid_context_child_count[source_path]) {
+        return path
+    }
+    key = liquid_context_child_order[source_path, idx]
+    liquid_split_append(path, 0, key)
+    liquid_context_temp_ref(path, 1, liquid_context_child(source_path, key))
+    return path
 }
 
 function liquid_condition(expr,    op, pos, op_len, left, right, right_expr, left_expr, left_value, right_value, left_path, left_defined, left_literal) {
@@ -1326,7 +1512,7 @@ function liquid_is_empty(value, path) {
     return value == ""
 }
 
-function liquid_expression_path(expr,    i, ch, segment, path, quote, end, inner, first) {
+function liquid_expression_path(expr,    i, ch, segment, path, quote, end, inner, first, depth) {
     expr = liquid_trim(expr)
     path = ""
     segment = ""
@@ -1357,8 +1543,18 @@ function liquid_expression_path(expr,    i, ch, segment, path, quote, end, inner
                         i++
                     }
                 } else {
-                    while (i <= length(expr) && substr(expr, i, 1) != "]") {
-                        inner = inner substr(expr, i, 1)
+                    depth = 1
+                    while (i <= length(expr)) {
+                        ch = substr(expr, i, 1)
+                        if (ch == "[") {
+                            depth++
+                        } else if (ch == "]") {
+                            depth--
+                            if (depth == 0) {
+                                break
+                            }
+                        }
+                        inner = inner ch
                         i++
                     }
                     inner = liquid_expression_value(inner)

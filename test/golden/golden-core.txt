@@ -2,6 +2,29 @@
 # Add names here as the engine grows -- this is the ratchet (cf. awkyaml parse-core.txt).
 output, render a variable from the global namespace
 output, dump an array from the global context
+output, access an array item by index
+output, access an undefined variable by index
+output, array index out of bounds
+output, bracketed variable resolves to a string
+output, bracketed variable resolves to a string without leading identifier
+output, chained bracketed identifier index
+output, nested bracketed variable resolving to a string
+output, quoted, bracketed variable name
+output, quoted, bracketed variable name with whitespace
+output, render a float literal
+output, render a negative integer literal
+output, render a string literal
+output, render an integer literal
+output, render an output start sequence as a string literal
+output, render an undefined property
+output, render an undefined variable
+output, render nil
+output, top-level quoted, bracketed variable name with whitespace
+output, top-level quoted, bracketed variable name with whitespace followed by dot notation
+output, traverse variables with bracketed identifiers
+output, whitespace between bracket notation
+output, whitespace between dot and word
+output, whitespace between word and dot
 blank and empty, blank coerces to an empty string
 blank and empty, blank coerces to zero
 blank and empty, blank does not equal empty
@@ -24,6 +47,7 @@ filters, first, array of strings
 filters, first, array of things
 filters, first, empty left value
 filters, first, first of a string
+filters, first, first of a hash
 filters, first, left value is not an array
 filters, first, left value is undefined
 filters, join, join an array of integers
@@ -31,6 +55,7 @@ filters, join, join an array of strings
 filters, join, joining a string is a noop
 filters, join, left value contains non string
 filters, join, missing argument defaults to a space
+filters, join, too many arguments
 filters, join, undefined argument
 filters, join, undefined left value
 filters, last, array of strings
@@ -44,33 +69,43 @@ filters, size, size of a hash
 filters, size, size of a string
 filters, size, size of an array
 filters, size, size of an empty array
+filters, size, unexpected argument
 filters, size, undefined left value
 output, render a global variable with a filter
 filters, downcase, make lower case
 filters, downcase, not a string
+filters, downcase, unexpected argument
 filters, downcase, undefined left value
 filters, minus, arg string not a number
 filters, minus, float value and float arg
+filters, minus, integer value and float arg
 filters, minus, integer value and integer arg
 filters, minus, not a string, int or float
+filters, minus, string not a number
 filters, minus, string value and string arg
+filters, minus, too many args
 filters, minus, undefined argument
 filters, minus, undefined left value
 filters, plus, arg string not a number
 filters, plus, float value and float arg
+filters, plus, integer value and float arg
 filters, plus, integer value and integer arg
 filters, plus, integer value and negative integer arg
 filters, plus, not a string, int or float
+filters, plus, string not a number
 filters, plus, string value and string arg
+filters, plus, too many args
 filters, plus, undefined argument
 filters, plus, undefined left value
 filters, strip, left and right padded
 filters, strip, left padded
 filters, strip, not a string
 filters, strip, right padded
+filters, strip, unexpected argument
 filters, strip, undefined left value
 filters, upcase, make lower case
 filters, upcase, not a string
+filters, upcase, unexpected argument
 filters, upcase, undefined left value
 identifiers, ascii lowercase
 identifiers, ascii uppercase
@@ -159,6 +194,7 @@ filters, default, false
 filters, default, missing argument
 filters, default, nil
 filters, default, not empty string
+filters, default, too many arguments
 filters, default, undefined left value
 filters, default, zero is not falsy
 filters, default, zero is not falsy with allow_false
@@ -172,9 +208,11 @@ filters, abs, positive integer
 filters, abs, positive string float
 filters, abs, positive string integer
 filters, abs, string not a number
+filters, abs, unexpected argument
 filters, abs, undefined left value
 filters, abs, zero
 filters, at least, argument string not a number
+filters, at least, missing arg
 filters, at least, left value not a number
 filters, at least, left value not a number negative argument
 filters, at least, negative integer < arg
@@ -184,9 +222,11 @@ filters, at least, positive integer < arg
 filters, at least, positive integer == arg
 filters, at least, positive integer > arg
 filters, at least, positive string > arg
+filters, at least, too many args
 filters, at least, undefined argument
 filters, at least, undefined left value
 filters, at most, left value not a number
+filters, at most, missing arg
 filters, at most, negative integer < arg
 filters, at most, positive float < arg
 filters, at most, positive float > arg
@@ -194,6 +234,7 @@ filters, at most, positive integer < arg
 filters, at most, positive integer == arg
 filters, at most, positive integer > arg
 filters, at most, positive string > arg
+filters, at most, too many args
 filters, at most, undefined argument
 filters, at most, undefined left value
 filters, ceil, negative float
@@ -204,10 +245,13 @@ filters, ceil, positive float
 filters, ceil, positive integer
 filters, ceil, positive string float
 filters, ceil, string not a number
+filters, ceil, unexpected argument
 filters, ceil, undefined left value
 filters, ceil, zero
 filters, divided by, float value and integer arg
 filters, divided by, float division
+filters, divided by, arg string not a number
+filters, divided by, divied by zero
 filters, divided by, integer division
 filters, divided by, integer value and float arg
 filters, divided by, integer value and integer arg
@@ -217,6 +261,8 @@ filters, divided by, not a string, int or float
 filters, divided by, render
 filters, divided by, string not a number
 filters, divided by, string value and argument
+filters, divided by, too many args
+filters, divided by, undefined argument
 filters, divided by, undefined left value
 filters, divided by, zero divided by float
 filters, divided by, zero divided by integer
@@ -228,13 +274,16 @@ filters, floor, positive float
 filters, floor, positive integer
 filters, floor, positive string float
 filters, floor, string not a number
+filters, floor, unexpected argument
 filters, floor, undefined left value
 filters, floor, zero
 filters, times, float times float
 filters, times, int times float
 filters, times, int times int
+filters, times, missing arg
 filters, times, negative multiplication
 filters, times, string times string
+filters, times, too many args
 filters, times, undefined argument
 filters, times, undefined left value
 identifiers, capture ascii lowercase
@@ -280,6 +329,7 @@ range, start is not a number
 range, whitespace after dots
 range, whitespace after stop
 range, whitespace before and after dots
+range, whitespace before and after dots, for loop
 range, whitespace before dots
 range, whitespace before start
 filters, first, range literal first filter left value
@@ -300,6 +350,7 @@ tags, echo, access an array item by negative index
 special, first of a string
 special, first of an array
 special, first of an empty object
+special, first of an object
 special, first of an object with a first property
 special, last of a object
 special, last of a string
@@ -310,11 +361,14 @@ special, size of an array
 special, size of an object with a size property
 special, size of undefined
 filters, modulo, float value and float arg
+filters, modulo, arg string not a number
 filters, modulo, integer value and float arg
 filters, modulo, integer value and integer arg
 filters, modulo, not a string, int or float
 filters, modulo, string not a number
 filters, modulo, string value and argument
+filters, modulo, too many args
+filters, modulo, undefined argument
 filters, modulo, undefined left value
 filters, round, argument is a float
 filters, round, argument is a negative
@@ -328,27 +382,38 @@ filters, round, float round down
 filters, round, float round up
 filters, round, integer
 filters, round, string argument
+filters, round, too many args
 filters, round, undefined argument
 filters, round, undefined left value
 filters, append, argument not a string
 filters, append, concat
+filters, append, missing argument
 filters, append, not a string
+filters, append, too many arguments
 filters, append, undefined argument
 filters, append, undefined left value
 filters, prepend, argument not a string
 filters, prepend, concat
+filters, prepend, missing argument
 filters, prepend, not a string
+filters, prepend, too many arguments
 filters, prepend, undefined argument
 filters, prepend, undefined left value
 filters, remove, argument not a string
+filters, remove, missing argument
 filters, remove, not a string
 filters, remove, remove substrings
+filters, remove, too many arguments
 filters, remove, undefined argument
 filters, remove, undefined left value
 filters, replace, argument not a string
+filters, replace, left value is an object
 filters, replace, missing argument
+filters, replace, missing arguments
 filters, replace, not a string
 filters, replace, replace substrings
+filters, replace, too many arguments
+filters, replace, undefined first argument
 filters, replace, undefined left value
 filters, replace, undefined second argument
 filters, strip html, html block
@@ -360,8 +425,12 @@ filters, strip html, script block
 filters, strip html, some HTML markup
 filters, strip html, some HTML markup with HTML comment
 filters, strip html, style block
+filters, strip html, unexpected argument
 filters, strip html, undefined left value
 filters, slice, first argument is a string
+filters, slice, first argument is a float
+filters, slice, first argument not an integer
+filters, slice, missing arguments
 filters, slice, negative first argument
 filters, slice, negative first argument and length out of range
 filters, slice, negative first argument and negative length
@@ -370,8 +439,13 @@ filters, slice, not a string
 filters, slice, one
 filters, slice, one length three
 filters, slice, out of range
+filters, slice, second argument is a float
 filters, slice, second argument is a string
+filters, slice, second argument not an integer
+filters, slice, too many arguments
+filters, slice, undefined first argument
 filters, slice, undefined left value
+filters, slice, undefined second argument
 filters, slice, zero
 filters, truncate, custom end
 filters, truncate, default end
@@ -379,6 +453,8 @@ filters, truncate, default length is 50
 filters, truncate, no end
 filters, truncate, not a string
 filters, truncate, string is shorter than length
+filters, truncate, too many arguments
+filters, truncate, undefined first argument
 filters, truncate, undefined left value
 filters, truncate, undefined second argument
 filters, truncatewords, all whitespace is clobbered
@@ -392,6 +468,9 @@ filters, truncatewords, reference implementation test 1
 filters, truncatewords, reference implementation test 2
 filters, truncatewords, reference implementation test 3
 filters, truncatewords, reference implementation test 4
+filters, truncatewords, reference implementation test 5
+filters, truncatewords, too many arguments
+filters, truncatewords, undefined first argument
 filters, truncatewords, undefined left value
 filters, truncatewords, undefined second argument
 filters, sum, empty sequence
@@ -400,10 +479,12 @@ filters, sum, hashes with property argument
 filters, sum, hashes with some missing properties
 filters, sum, hashes without property argument
 filters, sum, ints
+filters, sum, nested ints
 filters, sum, negative ints
 filters, sum, negative strings
 filters, sum, only zeros
 filters, sum, positive and negative ints
+filters, sum, properties arguments with non-hash items
 whitespace control, don't suppress whitespace only case blocks containing output
 tags, case, 'when' expression using an identifier
 tags, case, 'when' expression using an out of scope identifier
@@ -449,6 +530,7 @@ tags, if, string is not less than or equal to string
 tags, if, string is not less than string
 filters, split, argument does not appear in string
 filters, split, argument is a newline
+filters, split, argument is a single space
 filters, split, argument is false
 filters, split, argument is nil
 filters, split, argument not a string
@@ -457,17 +539,21 @@ filters, split, empty string and single char argument
 filters, split, empty string argument
 filters, split, left matches argument
 filters, split, left matches string repr of argument
+filters, split, missing argument
 filters, split, not a string
 filters, split, split string
+filters, split, too many arguments
 filters, split, undefined argument
 filters, split, undefined left value
 tags, if, array is equal to array from context
 tags, unless, array is equal to array from context
 output, reverse a range
 filters, reverse, array of strings
+filters, reverse, array of things
 filters, reverse, empty array
 filters, reverse, left value is undefined
 filters, reverse, left value not an array
+filters, reverse, unexpected argument
 filters, sort, argument is undefined
 filters, sort, array of strings
 filters, sort, empty array
@@ -479,73 +565,101 @@ filters, sort natural, left value is not an array
 filters, sort natural, left value is undefined
 filters, compact, array with a nil
 filters, compact, empty array
+filters, compact, left value is not an array
 filters, compact, left value is undefined
+filters, compact, too many arguments
 filters, uniq, array of strings
 filters, uniq, array of things
 filters, uniq, empty array
 filters, uniq, left value is not an array
 filters, uniq, left value is undefined
+filters, uniq, too many arguments
 filters, concat, left value contains non string
 filters, concat, left value is not array-like
 filters, concat, nested left value gets flattened
 filters, concat, range literal concat filter left value
 filters, concat, two arrays of strings
 filters, concat, undefined left value
+filters, concat, missing argument is an error
+filters, concat, non array-like argument is an error
+filters, concat, undefined argument is an error
 filters, strip newlines, newline and other whitespace
 filters, strip newlines, not a string
 filters, strip newlines, reference implementation test 1
 filters, strip newlines, reference implementation test 2
+filters, strip newlines, unexpected argument
 filters, strip newlines, undefined left value
+filters, lstrip, left and right padded
 filters, lstrip, left padded
 filters, lstrip, not a string
+filters, lstrip, right padded
+filters, lstrip, unexpected argument
 filters, lstrip, undefined left value
+filters, rstrip, left and right padded
+filters, rstrip, left padded
 filters, rstrip, not a string
 filters, rstrip, right padded
+filters, rstrip, unexpected argument
 filters, rstrip, undefined left value
 filters, capitalize, already capitalized string
 filters, capitalize, lower case string
 filters, capitalize, multi-word string
+filters, capitalize, unexpected argument
 filters, capitalize, undefined left value
 filters, newline to br, not a string
 filters, newline to br, reference implementation test 1
 filters, newline to br, reference implementation test 2
 filters, newline to br, string with newlines
+filters, newline to br, unexpected argument
 filters, newline to br, undefined left value
 filters, remove first, argument not a string
+filters, remove first, missing argument
 filters, remove first, not a string
 filters, remove first, remove substrings
+filters, remove first, too many arguments
 filters, remove first, undefined argument
 filters, remove first, undefined left value
 filters, remove last, argument not a string
+filters, remove last, missing argument
 filters, remove last, not a string
 filters, remove last, remove substrings
+filters, remove last, too many arguments
 filters, remove last, undefined argument
 filters, remove last, undefined left value
 filters, replace first, argument not a string
 filters, replace first, missing argument
+filters, replace first, missing arguments
 filters, replace first, not a string
 filters, replace first, replace substrings
+filters, replace first, too many arguments
 filters, replace first, undefined first argument
 filters, replace first, undefined left value
 filters, replace first, undefined second argument
 filters, replace last, argument not a string
+filters, replace last, missing argument
+filters, replace last, missing arguments
 filters, replace last, not a string
 filters, replace last, replace substrings
+filters, replace last, too many arguments
 filters, replace last, undefined first argument
 filters, replace last, undefined left value
 filters, replace last, undefined second argument
 filters, escape, make HTML-safe
 filters, escape, not a string
+filters, escape, unexpected argument
 filters, escape, undefined left value
 filters, escape once, make HTML-safe
 filters, escape once, make HTML-safe from mixed safe and markup.
 filters, escape once, not a string
+filters, escape once, unexpected argument
 filters, escape once, undefined left value
 filters, url encode, not a string
 filters, url encode, some special URL characters
+filters, url encode, unexpected argument
 filters, url encode, undefined left value
 filters, url decode, not a string
 filters, url decode, some special URL characters
+filters, url decode, unexpected argument
 filters, url decode, undefined left value
 filters, sort, array of objects
 filters, sort natural, array of objects with a key
@@ -553,9 +667,12 @@ filters, sort natural, array of objects with a key gets stringified
 filters, compact, array of objects with key property
 filters, uniq, array of objects with key property
 filters, uniq, array of objects with missing key property
+filters, uniq, unhashable items
 filters, map, argument is explicit nil
+filters, map, array containing a non object
 filters, map, array of objects
 filters, map, input is a hash
+filters, map, left value not an array
 filters, map, missing property
 filters, map, nested arrays get flattened
 filters, map, undefined argument
@@ -564,7 +681,11 @@ filters, where, array of hashes with a missing key
 filters, where, array of hashes with equality test
 filters, where, both arguments are undefined
 filters, where, first argument is undefined
+filters, where, left value is not an array
 filters, where, left value is undefined
+filters, where, missing argument
+filters, where, second argument is undefined
+filters, where, too many arguments
 filters, where, value is explicit nil
 filters, where, value is false
 filters, has, array of hashes, false property
@@ -595,6 +716,7 @@ filters, find, string input, default value, match
 filters, find, string input, string value, match
 filters, find, string input, string value, no match
 filters, find index, array of hashes, int value, match
+filters, find index, array of hashes, explicit nil, match
 filters, find index, array of hashes, with a nil
 filters, find index, array of strings, default value
 filters, find index, array of strings, default value, no match
@@ -602,6 +724,7 @@ filters, find index, array of strings, substring match, default value
 filters, find index, hash input, default value, match
 filters, find index, hash input, default value, no match
 filters, find index, hash input, int value, match
+filters, find index, hash input, explicit nil, match
 filters, find index, string input, default value, match
 filters, find index, string input, string value, match
 filters, find index, string input, string value, no match
@@ -619,8 +742,11 @@ filters, reject, input is a hash, default value, no match
 filters, reject, input is a hash, int value, match
 filters, reject, input is a hash, int value, no match
 filters, reject, nested array of hashes gets flattened
+filters, reject, missing argument
+filters, reject, second argument is undefined
 filters, reject, string input becomes a single element array, no match
 filters, reject, string input becomes a single element array, substring match
+filters, reject, too many arguments
 filters, squish, any whitespace before between and after
 filters, squish, empty string
 filters, squish, just space after
@@ -640,6 +766,7 @@ filters, squish, space before and after
 filters, squish, space before between and after
 output, render a default given a literal false with 'allow false' equal to false
 output, render a default given a literal false with 'allow false' equal to true
+tags, assign, assign an existing array
 filters, default, allow false
 filters, default, allow false from context
 filters, default, false keyword argument before positional
@@ -696,6 +823,7 @@ tags, for, simple hash loop
 tags, for, some comma separated arguments
 blank and empty, blank is truthy
 blank and empty, empty is truthy
+identifiers, trailing question mark output
 tags, if, array contains nil
 tags, if, contains condition
 tags, if, empty array is truthy
@@ -744,7 +872,12 @@ tags, doc, docs containing unclosed tags are ok
 tags, doc, don't render docs
 tags, comment, closing output delimiters are not parsed
 tags, echo, nothing to echo
+tags, inline comment, can't comment tags
 tags, inline comment, liquid tag
+tags, inline comment, lots of hashes in a liquid tag
+tags, inline comment, multiple lines
+tags, inline comment, with whitespace control and padding
+tags, inline comment, with whitespace control no padding
 tags, liquid, bare liquid tag in liquid tag
 tags, liquid, liquid tag in liquid tag
 tags, liquid, nested liquid in liquid tag
@@ -758,6 +891,8 @@ filters, date, negative timestamp string
 filters, date, seconds since epoch format directive
 filters, date, timestamp integer
 filters, date, timestamp string
+filters, date, missing argument
+filters, date, too many arguments
 filters, date, undefined argument
 filters, date, undefined left value
 filters, date, well formed string
@@ -772,16 +907,22 @@ tags, ifchanged, not changed from initial state
 filters, base64 encode, from string
 filters, base64 encode, from string with URL unsafe
 filters, base64 encode, not a string
+filters, base64 encode, unexpected argument
 filters, base64 encode, undefined left value
 filters, base64 decode, from string
 filters, base64 decode, from string with URL unsafe
+filters, base64 decode, not a string
+filters, base64 decode, unexpected argument
 filters, base64 decode, undefined left value
 filters, base64 url safe encode, from string
 filters, base64 url safe encode, from string with URL unsafe
 filters, base64 url safe encode, not a string
+filters, base64 url safe encode, unexpected argument
 filters, base64 url safe encode, undefined left value
 filters, base64 url safe decode, from string
 filters, base64 url safe decode, from string with URL unsafe
+filters, base64 url safe decode, not a string
+filters, base64 url safe decode, unexpected argument
 filters, base64 url safe decode, undefined left value
 filters, has, hash input, explicit nil, match
 filters, has, hash input, explicit nil, no match

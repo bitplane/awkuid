@@ -142,7 +142,10 @@ function liquid_context_join(path, sep,    i, out, child) {
     out = ""
     for (i = 0; i < liquid_context_len[path]; i++) {
         child = liquid_context_child(path, i)
-        out = out (i == 0 ? "" : sep) liquid_context_string(child)
+        if (liquid_context_type[child] == "seq" && liquid_context_len[child] == 0) {
+            continue
+        }
+        out = out (out == "" ? "" : sep) liquid_context_string(child)
     }
     return out
 }

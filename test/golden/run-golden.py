@@ -46,15 +46,14 @@ def render(template, data, templates):
         cmd = [AWK, "-v", f"liquid_template_dir={tmp}", "-f", str(ENGINE), str(template_file)] if AWK else [str(ENGINE), str(template_file)]
         proc = subprocess.run(
             cmd,
-            input=json_to_events(data),
-            text=True,
+            input=json_to_events(data).encode(),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
         )
     if proc.returncode != 0:
         return None
-    return proc.stdout
+    return proc.stdout.decode()
 
 
 def event_escape(value, *, path=False):

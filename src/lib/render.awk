@@ -346,17 +346,39 @@ function liquid_render_assign(text,    eq, name, expr) {
     liquid_local_path[name] = liquid_value_path
 }
 
-function liquid_render_for(text, block,    parts, var, source, source_value, source_path, i, key, child_path, pair_path, out, body, else_block, else_pos, total, start, stop, step, iter, rendered, limit, offset, reversed, source_key, k, saved_values, saved_paths) {
+function liquid_render_for(text, block,    parts, var, source, source_value, source_path, i, key, child_path, pair_path, out, body, else_block, else_pos, total, start, stop, step, iter, rendered, limit, offset, reversed, source_key, k, saved_values, saved_paths, rest, options, depth, ch) {
     liquid_for_save(saved_values, saved_paths)
-    gsub(/,/, " ", text)
-    split(liquid_trim(text), parts, /[ \t\r\n]+/)
-    var = parts[1]
-    source = parts[3]
+    text = liquid_trim(text)
+    i = index(text, " in ")
+    var = liquid_trim(substr(text, 1, i - 1))
+    rest = liquid_trim(substr(text, i + 4))
+    if (substr(rest, 1, 1) == "(") {
+        depth = 0
+        for (i = 1; i <= length(rest); i++) {
+            ch = substr(rest, i, 1)
+            if (ch == "(") {
+                depth++
+            } else if (ch == ")") {
+                depth--
+                if (depth == 0) {
+                    break
+                }
+            }
+        }
+        source = substr(rest, 1, i)
+        options = liquid_trim(substr(rest, i + 1))
+    } else {
+        split(rest, parts, /[ \t\r\n]+/)
+        source = parts[1]
+        options = liquid_trim(substr(rest, length(source) + 1))
+    }
     source_key = var "-" source
     limit = -1
     offset = 0
     reversed = 0
-    for (i = 4; i in parts; i++) {
+    gsub(/,/, " ", options)
+    split(options, parts, /[ \t\r\n]+/)
+    for (i = 1; i in parts; i++) {
         if (parts[i] == "reversed") {
             reversed = 1
         } else if (parts[i] ~ /^limit:/) {

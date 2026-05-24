@@ -1,5 +1,6 @@
 BEGIN {
     liquid_template = ""
+    liquid_had_error = 0
     liquid_template_file = ARGV[1]
     if (liquid_template_file == "") {
         print "awkuid: missing template file" > "/dev/stderr"
@@ -21,5 +22,9 @@ BEGIN {
 }
 
 END {
-    printf "%s", liquid_render(liquid_template)
+    liquid_rendered = liquid_render(liquid_template)
+    if (liquid_had_error) {
+        exit 1
+    }
+    printf "%s", liquid_rendered
 }
