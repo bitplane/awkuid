@@ -551,7 +551,7 @@ function liquid_partial_isolate(    k, keep_values, keep_paths) {
     }
 }
 
-function liquid_partial_name(text,    first, value, end) {
+function liquid_partial_name(text,    first, value, end, result) {
     text = liquid_trim(text)
     if (substr(text, 1, 2) == "{{") {
         end = index(text, "}}")
@@ -566,7 +566,11 @@ function liquid_partial_name(text,    first, value, end) {
     if (value ~ /^["']/) {
         return liquid_unquote(value)
     }
-    return liquid_expression_value(value)
+    result = liquid_expression_value(value)
+    if (result == "" && value ~ /[.\/]/) {
+        return value
+    }
+    return result
 }
 
 function liquid_partial_args(text,    rest, parts, count, i, part, colon, name, expr, value, path, include_path, include_child) {

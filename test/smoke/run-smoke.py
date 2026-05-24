@@ -34,6 +34,24 @@ def render(awk, template):
     return proc.returncode, proc.stdout.decode(), proc.stderr.decode()
 
 
+def render_with_include(awk):
+    with tempfile.TemporaryDirectory(prefix="awkuid-smoke.") as tmp:
+        root = pathlib.Path(tmp)
+        include_dir = root / "includes"
+        include_dir.mkdir()
+        (include_dir / "card.html.liquid").write_text("{{ include.html }}")
+        path = root / "template.liquid"
+        path.write_text('{% include card.html html="hello" %}')
+        proc = subprocess.run(
+            [awk, "-v", f"liquid_template_dir={include_dir}", "-f", str(ENGINE), str(path)],
+            input=EVENTS.encode(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    return proc.returncode, proc.stdout.decode(), proc.stderr.decode()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--awk", default="awk")
@@ -49,7 +67,16 @@ def main():
             print(f"  actual:   {out!r}", file=sys.stderr)
             if err:
                 print(err, file=sys.stderr)
-    print(f"smoke: {len(CASES) - failed} passed, {failed} failed")
+    code, out, err = render_with_include(args.awk)
+    if code != 0 or out != "hello":
+        failed += 1
+        print("FAIL smoke: Jekyll-style include args", file=sys.stderr)
+        print("  expected: 'hello'", file=sys.stderr)
+        print(f"  actual:   {out!r}", file=sys.stderr)
+        if err:
+            print(err, file=sys.stderr)
+    total = len(CASES) + 1
+    print(f"smoke: {total - failed} passed, {failed} failed")
     return 1 if failed else 0
 
 

@@ -1,5 +1,7 @@
 AWK ?= awk
 PYTHON ?= python3
+PREFIX ?= $(HOME)/.local
+BINDIR ?= $(PREFIX)/bin
 
 LIB = src/lib
 MAIN = src/main
@@ -35,6 +37,12 @@ build/awkuid: $(AWKUID_SRCS)
 	@cat $(AWKUID_SRCS) >> $@.tmp
 	@chmod +x $@.tmp
 	@mv $@.tmp $@
+
+.PHONY: install
+install: build/awkuid ## Install awkuid into BINDIR, default ~/.local/bin.
+	mkdir -p "$(BINDIR)"
+	cp build/awkuid "$(BINDIR)/awkuid"
+	chmod +x "$(BINDIR)/awkuid"
 
 .PHONY: lint
 lint: ## POSIX-lint the engine sources (skips until they exist).
