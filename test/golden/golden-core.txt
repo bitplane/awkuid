@@ -8,6 +8,10 @@ output, array index out of bounds
 output, bracketed variable resolves to a string
 output, bracketed variable resolves to a string without leading identifier
 output, chained bracketed identifier index
+output, chained bracketed identifier index no dot
+output, chained identifier dot separated index
+output, dot followed by bracket
+output, double dot
 output, nested bracketed variable resolving to a string
 output, quoted, bracketed variable name
 output, quoted, bracketed variable name with whitespace
@@ -23,8 +27,13 @@ output, top-level quoted, bracketed variable name with whitespace
 output, top-level quoted, bracketed variable name with whitespace followed by dot notation
 output, traverse variables with bracketed identifiers
 output, whitespace between bracket notation
+output, whitespace between words
 output, whitespace between dot and word
 output, whitespace between word and dot
+illegal, no addition operator
+illegal, no multiplication operator
+illegal, no subtraction operator
+illegal, unknown tag
 blank and empty, blank coerces to an empty string
 blank and empty, blank coerces to zero
 blank and empty, blank does not equal empty
@@ -109,10 +118,18 @@ filters, upcase, unexpected argument
 filters, upcase, undefined left value
 identifiers, ascii lowercase
 identifiers, ascii uppercase
+identifiers, allowed symbols
+identifiers, allowed symbols, parens
+identifiers, at sign
 identifiers, digits
 identifiers, hyphens
+identifiers, leading hyphen
 identifiers, leading underscore
+identifiers, only digits
+identifiers, only digits, self
 identifiers, only underscore
+identifiers, repeated parens
+identifiers, trailing question mark assign
 identifiers, underscore
 output, access array item by index stored in a local variable
 output, render a variable from the local namespace
@@ -122,13 +139,23 @@ tags, assign, assign to variable with a hyphen
 tags, assign, assign with quoted notation and extra whitespace
 tags, assign, local variables shadow global variables
 tags, comment, closing tag delimiters are not parsed
+tags, comment, comment inside liquid tag
 tags, comment, don't render comments
 tags, comment, don't render comments with nested tags
 tags, comment, fully formed nested output markup is not parsed
 tags, comment, fully formed nested tags are not parsed
+tags, comment, incomplete nested output markup is a syntax error
+tags, comment, incomplete nested tags are a syntax error
+tags, comment, nested comment blocks
+tags, comment, nested comment blocks, with nested tags
+tags, comment, nested raw block
+tags, comment, respect whitespace control in comments
+tags, comment, unbalanced nested comment blocks
+tags, comment, unbalanced nested raw tag
 tags, echo, access an array item by index
 tags, echo, access an undefined variable by index
 tags, echo, access array item by index stored in a local variable
+tags, echo, dump an array from the global context
 tags, echo, render a float literal
 tags, echo, render a global identifier with a filter
 tags, echo, render a string literal
@@ -290,7 +317,9 @@ identifiers, capture ascii lowercase
 identifiers, capture ascii uppercase
 identifiers, capture digits
 identifiers, capture hyphens
+identifiers, capture leading hyphen
 identifiers, capture leading underscore
+identifiers, capture only digits
 identifiers, capture only underscore
 identifiers, capture underscore
 output, assign a variable the value of an existing variable
@@ -306,12 +335,18 @@ tags, inline comment, comment with single quoted string
 tags, inline comment, comment with u2018
 tags, inline comment, comment with u201C
 tags, inline comment, empty
+tags, inline comment, enforce leading hash
 tags, inline comment, no padding after the hash
 tags, inline comment, no whitespace control no padding
 tags, inline comment, no whitespace control with padding
 tags, unless, alternative block
 tags, unless, array is equal to array
+tags, unless, blocks that contain only whitespace are not rendered
+tags, unless, conditional alternative block
 tags, unless, conditional alternative block with default
+tags, unless, else tag expressions are ignored
+tags, unless, extra else blocks are ignored
+tags, unless, extra elsif blocks are ignored
 tags, unless, literal false condition
 tags, unless, literal true condition
 tags, unless, one is not equal to true
@@ -486,40 +521,80 @@ filters, sum, only zeros
 filters, sum, positive and negative ints
 filters, sum, properties arguments with non-hash items
 whitespace control, don't suppress whitespace only case blocks containing output
+whitespace control, suppress whitespace only case blocks
 tags, case, 'when' expression using an identifier
 tags, case, 'when' expression using an out of scope identifier
 tags, case, comma string literal
+tags, case, empty when tag
+tags, case, evaluate multiple matching blocks
+tags, case, falsy when before and truthy when after else
+tags, case, falsy when before and truthy when after multiple else blocks
+tags, case, mix or and comma separated when expression
+tags, case, multiple else blocks
 tags, case, name not in scope
+tags, case, no whens
 tags, case, no match and no default
 tags, case, no whens or default
 tags, case, simple case/when
 tags, case, switch on array
 tags, case, tags inside when block
 tags, case, truthy and empty when block before else
+tags, case, truthy when before and after else
 tags, case, unexpected when token
+tags, case, unexpected when token, strict2
 tags, case, whitespace
 tags, case, with default
 tags, liquid, carriage return and newline terminated tags
+tags, liquid, can't close nested blocks
 tags, liquid, empty liquid tag
+tags, liquid, carriage return terminated tags
+tags, liquid, multi-line comment tag
 tags, liquid, newline terminated tags
 tags, liquid, only whitespace
+tags, liquid, reference test #4
+tags, liquid, single line comment tag
+tags, liquid, whitespace control
 blank and empty, array of length 1 is not equal to blank
 blank and empty, array of length 1 is not equal to empty
 blank and empty, object with one property is not equal to blank
 blank and empty, object with one property is not equal to empty
 whitespace control, don't suppress whitespace only blocks containing echo
 whitespace control, don't suppress whitespace only blocks containing output
+whitespace control, don't suppress whitespace only blocks containing output in nested block
+whitespace control, don't suppress whitespace only blocks containing output in unreachable blocks
+whitespace control, don't suppress whitespace only unless blocks containing output in nested blocks
+whitespace control, suppress whitespace only if blocks
+whitespace control, suppress whitespace only unless blocks
+whitespace control, suppress whitespace surrounding an empty capture block
+whitespace control, suppress whitespace surrounding a capture block
+whitespace control, white space control with  carriage return, newline and spaces
+whitespace control, white space control with carriage return and spaces
+whitespace control, white space control with raw tags
+whitespace control, white space control with newlines and spaces
+whitespace control, white space control with newlines, tabs and spaces
 tags, if, array contains false
+tags, if, array contains undefined
 tags, if, array is equal to array
+tags, if, blocks that contain only whitespace and comments are not rendered
+tags, if, blocks that contain only whitespace are not rendered
 tags, if, condition with conditional alternative and final alternative
+tags, if, condition with conditional alternative
 tags, if, condition with literal consequence
 tags, if, condition with literal consequence and literal alternative
 tags, if, conditional alternative with default
 tags, if, context string contains string from context
 tags, if, non-empty hash is truthy
 tags, if, string contains int
+tags, if, int does not equal string
+tags, if, int equals float
+tags, if, logical operators are right associative
+tags, if, object contains nil
+tags, if, object contains undefined
+tags, if, string contains nil
 tags, if, string contains string
 tags, if, string contains string from context
+tags, if, string contains undefined
+tags, if, string does not equal int
 tags, if, string is greater than or equal to string
 tags, if, string is greater than string
 tags, if, string is less than or equal to string
@@ -557,10 +632,14 @@ filters, reverse, unexpected argument
 filters, sort, argument is undefined
 filters, sort, array of strings
 filters, sort, empty array
+filters, sort, incompatible types
 filters, sort, left value is not an array
 filters, sort, left value is undefined
 filters, sort, sort a string
+filters, sort natural, argument is undefined
+filters, sort natural, array of strings with a nul
 filters, sort natural, array of strings
+filters, sort natural, incompatible types
 filters, sort natural, left value is not an array
 filters, sort natural, left value is undefined
 filters, compact, array with a nil
@@ -662,8 +741,11 @@ filters, url decode, some special URL characters
 filters, url decode, unexpected argument
 filters, url decode, undefined left value
 filters, sort, array of objects
+filters, sort, array of objects with missing key
+filters, sort, too many arguments
 filters, sort natural, array of objects with a key
 filters, sort natural, array of objects with a key gets stringified
+filters, sort natural, array of objects with a missing key
 filters, compact, array of objects with key property
 filters, uniq, array of objects with key property
 filters, uniq, array of objects with missing key property
@@ -689,11 +771,13 @@ filters, where, too many arguments
 filters, where, value is explicit nil
 filters, where, value is false
 filters, has, array of hashes, false property
+filters, has, array of hashes, with a nil
 filters, has, array of hashes, int property
 filters, has, array of hashes, int value, match
 filters, has, array of hashes, int value, no match
 filters, has, array of hashes, nil property
 filters, has, array of ints, default value
+filters, has, array of ints, string argument, default value
 filters, has, array of strings, default value
 filters, has, array of strings, default value, no match
 filters, has, array of strings, default value, substring match
@@ -702,9 +786,11 @@ filters, has, hash input, default value, no match
 filters, has, hash input, false value, match
 filters, has, hash input, int value, match
 filters, has, hash input, int value, no match
+filters, has, mixed array, default value
 filters, has, string input, default value, match
 filters, has, string input, default value, no match
 filters, find, array of hashes, int value, match
+filters, find, array of hashes, with a nil
 filters, find, array of strings, default value
 filters, find, array of strings, default value, no match
 filters, find, array of strings, substring match, default value
@@ -712,6 +798,7 @@ filters, find, hash input, default value, match
 filters, find, hash input, default value, no match
 filters, find, hash input, explicit nil, match
 filters, find, hash input, int value, match
+filters, find, mixed array, default value
 filters, find, string input, default value, match
 filters, find, string input, string value, match
 filters, find, string input, string value, no match
@@ -725,10 +812,12 @@ filters, find index, hash input, default value, match
 filters, find index, hash input, default value, no match
 filters, find index, hash input, int value, match
 filters, find index, hash input, explicit nil, match
+filters, find index, mixed array, default value
 filters, find index, string input, default value, match
 filters, find index, string input, string value, match
 filters, find index, string input, string value, no match
 filters, reject, array containing null, default value
+filters, reject, array containing an int, default value
 filters, reject, array of hashes, default value
 filters, reject, array of hashes, explicit false
 filters, reject, array of hashes, explicit true
@@ -736,6 +825,7 @@ filters, reject, array of hashes, missing property
 filters, reject, array of hashes, string value
 filters, reject, array of strings, default value
 filters, reject, first argument is undefined
+filters, reject, input is undefined
 filters, reject, input is a hash, default value
 filters, reject, input is a hash, default value, nil match
 filters, reject, input is a hash, default value, no match
@@ -777,11 +867,14 @@ blank and empty, loop over blank
 blank and empty, loop over empty
 identifiers, hyphen in for loop target
 identifiers, hyphen in for loop variable
+identifiers, leading hyphen in for loop target
 identifiers, trailing question mark in for loop target
 identifiers, trailing question mark in for loop variable
 tags, for, access parentloop
 tags, for, break
+tags, for, blank empty loops
 tags, for, comma separated arguments
+tags, for, continue
 tags, for, continue a loop
 tags, for, continue a loop over a changing array
 tags, for, continue a loop over an assigned range
@@ -804,19 +897,26 @@ tags, for, forloop.rindex0
 tags, for, iterate an empty array with default
 tags, for, limit
 tags, for, limit is a string
+tags, for, limit is a non-number string
+tags, for, limit is not a string or number
 tags, for, lookup a filter from an outer context
 tags, for, loop over a string variable
+tags, for, loop over a string literal
 tags, for, loop over an array in reverse
 tags, for, loop over nested and chained object from context with trailing identifier
 tags, for, nothing to continue from
 tags, for, offset
 tags, for, offset and limit
 tags, for, offset continue forloop length
+tags, for, offset continue from a broken loop
+tags, for, offset continue from a broken loop with preceding limit
 tags, for, offset continue twice with changing limit
 tags, for, offset continue twice with limit
 tags, for, offset continue twice with no second limit
 tags, for, offset continue without preceding loop
 tags, for, offset is a string
+tags, for, offset is a non-number string
+tags, for, offset is not a string or number
 tags, for, parent's parentloop
 tags, for, parentloop goes out of scope
 tags, for, simple hash loop
@@ -829,10 +929,27 @@ tags, if, contains condition
 tags, if, empty array is truthy
 tags, if, empty object is truthy
 tags, if, empty string is truthy
+tags, if, endswith is not a valid operator
+tags, if, else tag expressions are ignored
+tags, if, extra else blocks are ignored
+tags, if, extra elsif blocks are ignored
+tags, if, haskey is not a valid operator
+tags, if, in is not a valid operator
+tags, if, not is not a valid operator
+tags, if, startswith is not a valid operator
 tags, if, undefined contains string
+tags, if, string greater than int
+tags, if, undefined contains array
+tags, if, undefined contains object
+tags, if, undefined contains undefined
+tags, if, nested condition in the consequence block
+tags, if, nested condition, alternative in the consequence block
 tags, include, assign persists in outer scope
+tags, include, assign to a keyword argument
+tags, include, bound array variable
 tags, include, bound variable
 tags, include, bound variable does not exist
+tags, include, bound variable with alias
 tags, include, break from include
 tags, include, break from nested include
 tags, include, keyword arguments go out of scope
@@ -844,16 +961,46 @@ tags, include, some keyword arguments without leading comma
 tags, include, string literal name
 tags, include, use globals from outer scope
 tags, render, assign to keyword argument
+tags, render, assigned variables do not leak into outer scope
+tags, render, bound array variable
 tags, render, bound variable
 tags, render, bound variable does not exist
+tags, render, bound variable with alias
+tags, render, decrement is isolated between renders
+tags, render, for loop variables go out of scope
+tags, render, forloop helper
+tags, render, increment is isolated between renders
+tags, render, parent variables go out of scope
+tags, render, render loops can't access parentloop
+tags, render, render loops don't add parentloop
 tags, render, some keyword arguments
 tags, render, some keyword arguments including a range literal
 tags, render, some keyword arguments no leading coma
+tags, render, string literal name
+tags, tablerow, break from a tablerow loop
+tags, tablerow, break from a tablerow loop inside a for loop
+tags, tablerow, cols is a float
+tags, tablerow, cols is a string
+tags, tablerow, continue from a tablerow loop
+tags, tablerow, limit is a string
+tags, tablerow, no cols param
+tags, tablerow, offset is a string
+tags, tablerow, one row
+tags, tablerow, one row with limit
+tags, tablerow, one row with offset
+tags, tablerow, two column odd range
+tags, tablerow, two column odd range row numbers
+tags, tablerow, two column range
+tags, tablerow, two columns
 tags, cycle, changing variable name
 tags, cycle, different items
 tags, cycle, integers
 tags, cycle, multiple undefined variable names
+tags, cycle, undefined variable names mixed with no name
+tags, cycle, named with different number of arguments
+tags, cycle, named with growing number of arguments
 tags, cycle, named with different items
+tags, cycle, named with shrinking number of arguments
 tags, cycle, no identifier
 tags, cycle, variable name
 tags, cycle, with identifier
@@ -863,13 +1010,18 @@ tags, decrement, increment and decrement named counter
 tags, decrement, named counter
 tags, include, counter from outer scope
 tags, increment, incrementing counter renders before incrementing
+tags, increment, assign and increment
 tags, increment, multiple named counters
 tags, increment, named counter
 tags, increment, named counters are in scope for subsequent expressions
 tags, doc, doc text is not parsed
+tags, doc, doc arguments is an error
+tags, doc, doc tag block must be closed
 tags, doc, docs containing unclosed output are ok
 tags, doc, docs containing unclosed tags are ok
 tags, doc, don't render docs
+tags, doc, nested docs are not allowed
+tags, doc, whitespace control
 tags, comment, closing output delimiters are not parsed
 tags, echo, nothing to echo
 tags, inline comment, can't comment tags
@@ -880,9 +1032,15 @@ tags, inline comment, with whitespace control and padding
 tags, inline comment, with whitespace control no padding
 tags, liquid, bare liquid tag in liquid tag
 tags, liquid, liquid tag in liquid tag
+tags, liquid, nested liquid
 tags, liquid, nested liquid in liquid tag
 tags, liquid, reference test #2
 tags, liquid, reference test #3
+tags, raw, continue after raw
+tags, raw, literal
+tags, raw, output statement
+tags, raw, partial tag
+tags, raw, tag
 output, unexpected left value for the `join` filter passes through
 filters, join, argument is not a string
 filters, join, joining an int is a noop
@@ -904,6 +1062,7 @@ tags, ifchanged, change from assign
 tags, ifchanged, changed from initial state
 tags, ifchanged, no change from assign
 tags, ifchanged, not changed from initial state
+tags, ifchanged, within for loop
 filters, base64 encode, from string
 filters, base64 encode, from string with URL unsafe
 filters, base64 encode, not a string

@@ -15,11 +15,6 @@ function liquid_unquote(text,    quote) {
 
 function liquid_expression_value(expr,    pipe, next_pipe, colon, value, filter, arg, filter_path, rest) {
     expr = liquid_trim(expr)
-    if (expr in liquid_local_value) {
-        liquid_value_path = liquid_local_path[expr]
-        liquid_value_literal = 0
-        return liquid_local_value[expr]
-    }
     pipe = liquid_find_unquoted(expr, "|")
     if (pipe) {
         value = liquid_expression_value(substr(expr, 1, pipe - 1))
@@ -75,6 +70,28 @@ function liquid_expression_value(expr,    pipe, next_pipe, colon, value, filter,
         liquid_value_quoted = 1
         return liquid_unquote(expr)
     }
+    if (liquid_bracket_local_name(expr) in liquid_local_value) {
+        expr = liquid_bracket_local_name(expr)
+        if (expr ~ /^[0-9]+$/) {
+            liquid_numeric_assign_used[expr] = 1
+        }
+        liquid_value_path = liquid_local_path[expr]
+        liquid_value_literal = 0
+        liquid_value_defined = 1
+        return liquid_local_value[expr]
+    }
+    if (expr in liquid_local_value) {
+        liquid_value_path = liquid_local_path[expr]
+        liquid_value_literal = 0
+        liquid_value_defined = 1
+        return liquid_local_value[expr]
+    }
+    if (liquid_expression_has_illegal_operator(expr)) {
+        return liquid_error()
+    }
+    if (!liquid_expression_has_comparison_operator(expr) && liquid_expression_path_invalid(expr)) {
+        return liquid_error()
+    }
     liquid_value_path = liquid_expression_path(expr)
     if (!(liquid_value_path in liquid_context_type) && liquid_special_property(expr)) {
         liquid_value_defined = 1
@@ -82,6 +99,140 @@ function liquid_expression_value(expr,    pipe, next_pipe, colon, value, filter,
     }
     liquid_value_defined = liquid_value_path in liquid_context_type
     return liquid_context_scalar(liquid_value_path)
+}
+
+function liquid_expression_has_illegal_operator(expr,    i, ch, quote, prev, nxt) {
+    for (i = 1; i <= length(expr); i++) {
+        ch = substr(expr, i, 1)
+        if (quote != "") {
+            if (ch == quote) {
+                quote = ""
+            }
+            continue
+        }
+        if (ch == "\"" || ch == "'") {
+            quote = ch
+            continue
+        }
+        if (ch == "+" || ch == "*") {
+            return 1
+        }
+        if (ch == "-") {
+            prev = i > 1 ? substr(expr, i - 1, 1) : ""
+            nxt = i < length(expr) ? substr(expr, i + 1, 1) : ""
+            if (prev ~ /[ \t\r\n]/ && nxt ~ /[ \t\r\n]/) {
+                return 1
+            }
+        }
+    }
+    return 0
+}
+
+function liquid_bracket_local_name(expr,    i, ch, quote, name) {
+    expr = liquid_trim(expr)
+    if (substr(expr, 1, 1) != "[") {
+        return ""
+    }
+    i = 2
+    while (substr(expr, i, 1) ~ /[ \t\r\n]/) {
+        i++
+    }
+    quote = substr(expr, i, 1)
+    if (quote != "\"" && quote != "'") {
+        return ""
+    }
+    i++
+    while (i <= length(expr) && substr(expr, i, 1) != quote) {
+        name = name substr(expr, i, 1)
+        i++
+    }
+    if (substr(expr, i, 1) != quote) {
+        return ""
+    }
+    i++
+    while (substr(expr, i, 1) ~ /[ \t\r\n]/) {
+        i++
+    }
+    return substr(expr, i, 1) == "]" && liquid_trim(substr(expr, i + 1)) == "" ? name : ""
+}
+
+function liquid_expression_has_comparison_operator(expr,    i, ch, quote) {
+    for (i = 1; i <= length(expr); i++) {
+        ch = substr(expr, i, 1)
+        if (quote != "") {
+            if (ch == quote) {
+                quote = ""
+            }
+        } else if (ch == "\"" || ch == "'") {
+            quote = ch
+        } else if (ch == "!" || ch == "=" || ch == "<" || ch == ">") {
+            return 1
+        }
+    }
+    return 0
+}
+
+function liquid_expression_path_invalid(expr,    i, ch, quote, depth, last, saw_space, dot_pending) {
+    expr = liquid_trim(expr)
+    if (substr(expr, 1, 1) == "@" || substr(expr, 1, 1) == "-") {
+        return 1
+    }
+    for (i = 1; i <= length(expr); i++) {
+        ch = substr(expr, i, 1)
+        if (ch == "[") {
+            if (last == "dot") {
+                return 1
+            }
+            depth = 1
+            quote = ""
+            i++
+            while (i <= length(expr) && depth > 0) {
+                ch = substr(expr, i, 1)
+                if (quote != "") {
+                    if (ch == quote) {
+                        quote = ""
+                    }
+                } else if (ch == "\"" || ch == "'") {
+                    quote = ch
+                } else if (ch == "[") {
+                    depth++
+                } else if (ch == "]") {
+                    depth--
+                }
+                i++
+            }
+            if (depth > 0) {
+                return 1
+            }
+            i--
+            last = "bracket"
+            saw_space = 0
+            dot_pending = 0
+        } else if (ch == ".") {
+            if (last == "dot" || last == "") {
+                return 1
+            }
+            last = "dot"
+            saw_space = 0
+            dot_pending = 1
+        } else if (ch ~ /[ \t\r\n]/) {
+            saw_space = 1
+        } else {
+            if (last == "bracket" && !saw_space) {
+                return 1
+            }
+            if (last == "ident" && saw_space) {
+                return 1
+            }
+            if (dot_pending && ch ~ /[0-9]/) {
+                return 1
+            }
+            last = "ident"
+            saw_space = 0
+            dot_pending = 0
+        }
+    }
+    return last == "dot"
 }
 
 function liquid_find_unquoted(text, needle,    i, ch, quote) {
@@ -213,9 +364,11 @@ function liquid_apply_filter(value, filter, arg, path,    sep, n, child, right, 
         return liquid_reverse(value, path)
     }
     if (filter == "sort") {
+        if (liquid_count_filter_args(arg) > 1) { return liquid_error() }
         return liquid_sort(value, path, 0, arg)
     }
     if (filter == "sort_natural") {
+        if (liquid_count_filter_args(arg) > 1) { return liquid_error() }
         return liquid_sort(value, path, 1, arg)
     }
     if (filter == "compact") {
@@ -242,7 +395,8 @@ function liquid_apply_filter(value, filter, arg, path,    sep, n, child, right, 
         return liquid_reject(value, path, arg)
     }
     if (filter == "has") {
-        return liquid_has(value, path, arg) ? "true" : "false"
+        value = liquid_has(value, path, arg)
+        return value == "" ? "" : (value ? "true" : "false")
     }
     if (filter == "find_index") {
         return liquid_find_index(value, path, arg)
@@ -709,26 +863,44 @@ function liquid_reverse(value, source_path,    path, i, n, child) {
     return ""
 }
 
-function liquid_sort(value, source_path, natural, arg,    path, n, i, j, tmp, tmp_path, values, paths, keys, key, prop, child, sort_path) {
+function liquid_sort(value, source_path, natural, arg,    path, n, i, j, tmp, tmp_path, values, paths, keys, key, prop, prop_expr, child, sort_path, saw_scalar, saw_container) {
     if (source_path == "" || liquid_context_type[source_path] != "seq") {
         return value
     }
-    prop = liquid_filter_arg(arg, 1)
-    if (prop != "") {
-        prop = liquid_expression_value(prop)
+    prop_expr = liquid_filter_arg(arg, 1)
+    prop = prop_expr
+    if (prop_expr != "") {
+        prop = liquid_expression_value(prop_expr)
     }
     n = liquid_context_len[source_path]
+    if (natural && prop == "" && prop_expr != "" && liquid_context_type[liquid_context_child(liquid_context_child(source_path, 0), "title")] != "") {
+        prop = "title"
+    }
     for (i = 0; i < n; i++) {
         paths[i] = liquid_context_child(source_path, i)
+        if (!natural && prop == "") {
+            if (liquid_context_type[paths[i]] == "scalar") {
+                saw_scalar = 1
+            } else {
+                saw_container = 1
+            }
+            if (saw_scalar && saw_container) {
+                return liquid_error()
+            }
+        }
         if (prop != "") {
             sort_path = liquid_context_child(paths[i], prop)
             values[i] = liquid_context_string(sort_path)
-            if (!(sort_path in liquid_context_type)) {
+            if (!(sort_path in liquid_context_type) || liquid_context_type[sort_path] == "") {
                 keys[i] = "\377"
                 continue
             }
         } else {
             values[i] = liquid_context_string(paths[i])
+        }
+        if (natural && liquid_context_type[paths[i]] == "scalar" && liquid_context_tag[paths[i]] == "tag:yaml.org,2002:null") {
+            keys[i] = "\377"
+            continue
         }
         if (!natural && values[i] ~ /^[-]?[0-9]+$/) {
             keys[i] = sprintf("%020d", values[i] + 0)
@@ -764,7 +936,7 @@ function liquid_sort(value, source_path, natural, arg,    path, n, i, j, tmp, tm
             liquid_context_temp_ref(path, i, child)
         }
     }
-    return ""
+    return liquid_context_string(path)
 }
 
 function liquid_compact(value, source_path, arg,    path, i, child, text, prop, target) {
@@ -961,10 +1133,11 @@ function liquid_where(value, source_path, arg,    prop, want_expr, want, has_wan
     return ""
 }
 
-function liquid_reject(value, source_path, arg,    prop, want_expr, want, has_want, path) {
-    prop = liquid_filter_arg(arg, 1)
-    if (prop != "") {
-        prop = liquid_expression_value(prop)
+function liquid_reject(value, source_path, arg,    prop, prop_expr, want_expr, want, has_want, path) {
+    prop_expr = liquid_filter_arg(arg, 1)
+    prop = prop_expr
+    if (prop_expr != "") {
+        prop = liquid_expression_value(prop_expr)
     }
     want_expr = liquid_filter_arg(arg, 2)
     has_want = want_expr != ""
@@ -982,19 +1155,23 @@ function liquid_reject(value, source_path, arg,    prop, want_expr, want, has_wa
     if (prop == "") {
         return ""
     }
-    liquid_reject_append(path, source_path, value, prop, has_want, want, want_expr)
+    liquid_reject_append(path, source_path, value, prop, has_want, want, want_expr, prop_expr)
     return ""
 }
 
-function liquid_reject_append(out_path, source_path, value, prop, has_want, want, want_expr,    i, child) {
+function liquid_reject_append(out_path, source_path, value, prop, has_want, want, want_expr, prop_expr,    i, child) {
     if (source_path != "" && (!(source_path in liquid_context_type) || liquid_context_type[source_path] == "")) {
         return
     }
     if (source_path != "" && liquid_context_type[source_path] == "seq") {
         for (i = 0; i < liquid_context_len[source_path]; i++) {
             child = liquid_context_child(source_path, i)
-            liquid_reject_append(out_path, child, liquid_context_string(child), prop, has_want, want, want_expr)
+            liquid_reject_append(out_path, child, liquid_context_string(child), prop, has_want, want, want_expr, prop_expr)
         }
+        return
+    }
+    if (source_path != "" && liquid_context_type[source_path] == "scalar" && liquid_context_tag[source_path] == "tag:yaml.org,2002:int" && prop_expr ~ /^["']/) {
+        liquid_error()
         return
     }
     if (source_path != "" && liquid_filter_match(source_path, prop, has_want, want, want_expr)) {
@@ -1008,13 +1185,19 @@ function liquid_reject_append(out_path, source_path, value, prop, has_want, want
 }
 
 function liquid_has(value, source_path, arg) {
-    return liquid_find_index(value, source_path, arg) != ""
+    liquid_filter_blank_result = 0
+    value = liquid_find_index(value, source_path, arg)
+    if (liquid_filter_blank_result) {
+        return ""
+    }
+    return value != ""
 }
 
-function liquid_find_index(value, source_path, arg,    prop, want_expr, want, has_want, i, key, child) {
-    prop = liquid_filter_arg(arg, 1)
-    if (prop != "") {
-        prop = liquid_expression_value(prop)
+function liquid_find_index(value, source_path, arg,    prop, prop_expr, want_expr, want, has_want, i, key, child) {
+    prop_expr = liquid_filter_arg(arg, 1)
+    prop = prop_expr
+    if (prop_expr != "") {
+        prop = liquid_expression_value(prop_expr)
     }
     want_expr = liquid_filter_arg(arg, 2)
     has_want = want_expr != ""
@@ -1024,6 +1207,14 @@ function liquid_find_index(value, source_path, arg,    prop, want_expr, want, ha
     if (source_path != "" && liquid_context_type[source_path] == "seq") {
         for (i = 0; i < liquid_context_len[source_path]; i++) {
             child = liquid_context_child(source_path, i)
+            if (liquid_context_type[child] == "scalar" && (liquid_context_tag[child] == "tag:yaml.org,2002:null" || liquid_context_tag[child] == "tag:yaml.org,2002:bool")) {
+                liquid_filter_blank_result = 1
+                return ""
+            }
+            if (liquid_context_type[child] == "scalar" && liquid_context_tag[child] == "tag:yaml.org,2002:int" && prop_expr ~ /^["']/) {
+                liquid_error()
+                return ""
+            }
             if (liquid_filter_match(child, prop, has_want, want, want_expr)) {
                 return i
             }
@@ -1319,14 +1510,14 @@ function liquid_map_entry_pair(source_path, idx,    path, key) {
     return path
 }
 
-function liquid_condition(expr,    op, pos, op_len, left, right, right_expr, left_expr, left_value, right_value, left_path, left_defined, left_literal) {
+function liquid_condition(expr,    op, pos, op_len, left, right, right_expr, left_expr, left_value, right_value, left_path, left_defined, left_literal, left_quoted, right_path, right_defined, right_literal, right_quoted) {
     expr = liquid_trim(expr)
-    pos = index(expr, " or ")
+    pos = liquid_first_logical_operator(expr)
     if (pos) {
-        return liquid_condition(substr(expr, 1, pos - 1)) || liquid_condition(substr(expr, pos + 4))
-    }
-    pos = index(expr, " and ")
-    if (pos) {
+        op = substr(expr, pos + 1, substr(expr, pos + 1, 1) == "o" ? 2 : 3)
+        if (op == "or") {
+            return liquid_condition(substr(expr, 1, pos - 1)) || liquid_condition(substr(expr, pos + 4))
+        }
         return liquid_condition(substr(expr, 1, pos - 1)) && liquid_condition(substr(expr, pos + 5))
     }
     op = ""
@@ -1385,6 +1576,7 @@ function liquid_condition(expr,    op, pos, op_len, left, right, right_expr, lef
         left_path = liquid_value_path
         left_defined = liquid_value_defined
         left_literal = liquid_value_literal
+        left_quoted = liquid_value_quoted
         if ((op == ">" || op == "<" || op == ">=" || op == "<=") && (liquid_trim(left) == "blank" || liquid_trim(left) == "empty")) {
             return 0
         }
@@ -1400,17 +1592,42 @@ function liquid_condition(expr,    op, pos, op_len, left, right, right_expr, lef
         }
         right_expr = liquid_trim(right)
         right_value = liquid_expression_value(right)
+        right_path = liquid_value_path
+        right_defined = liquid_value_defined
+        right_literal = liquid_value_literal
+        right_quoted = liquid_value_quoted
         if (op == "contains") {
-            if (left_path != "" && liquid_context_type[left_path] == "seq" && (right_expr == "true" || right_expr == "false" || right_expr == "nil" || right_expr == "null")) {
+            if (!left_defined && !left_literal) {
+                return 0
+            }
+            if ((!right_defined && !right_literal) || right_expr == "nil" || right_expr == "null") {
+                return 0
+            }
+            if (left_path != "" && liquid_context_type[left_path] == "seq" && (right_expr == "true" || right_expr == "false")) {
                 return 0
             }
             return liquid_contains(left_path, left_value, right_value)
         }
         if (op == "==") {
+            if (liquid_condition_mixed_string_number(left_value, left_quoted, right_value, right_quoted)) {
+                return 0
+            }
+            if (liquid_number_is_numeric_shape(left_value) && liquid_number_is_numeric_shape(right_value) && !left_quoted && !right_quoted) {
+                return (left_value + 0) == (right_value + 0)
+            }
             return left_value == right_value
         }
         if (op == "!=") {
+            if (liquid_condition_mixed_string_number(left_value, left_quoted, right_value, right_quoted)) {
+                return 1
+            }
+            if (liquid_number_is_numeric_shape(left_value) && liquid_number_is_numeric_shape(right_value) && !left_quoted && !right_quoted) {
+                return (left_value + 0) != (right_value + 0)
+            }
             return left_value != right_value
+        }
+        if (liquid_condition_mixed_string_number(left_value, left_quoted, right_value, right_quoted)) {
+            return liquid_error()
         }
         if (op == ">=") {
             return left_value >= right_value
@@ -1443,6 +1660,29 @@ function liquid_condition(expr,    op, pos, op_len, left, right, right_expr, lef
         return 1
     }
     return left_value != ""
+}
+
+function liquid_first_logical_operator(expr,    i, ch, quote, word) {
+    for (i = 1; i <= length(expr); i++) {
+        ch = substr(expr, i, 1)
+        if (quote != "") {
+            if (ch == quote) {
+                quote = ""
+            }
+        } else if (ch == "\"" || ch == "'") {
+            quote = ch
+        } else if (substr(expr, i, 4) == " or ") {
+            return i
+        } else if (substr(expr, i, 5) == " and ") {
+            return i
+        }
+    }
+    return 0
+}
+
+function liquid_condition_mixed_string_number(left, left_quoted, right, right_quoted) {
+    return (left_quoted && liquid_number_is_numeric_shape(left) && liquid_number_is_numeric_shape(right) && !right_quoted) || \
+        (right_quoted && liquid_number_is_numeric_shape(right) && liquid_number_is_numeric_shape(left) && !left_quoted)
 }
 
 function liquid_contains(path, value, needle,    i, child) {
