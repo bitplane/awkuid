@@ -12,15 +12,15 @@ help: ## Show this help.
 	@awk 'BEGIN { FS = ":.*## " } /^[A-Za-z0-9_.-]+:.*## / { printf "%-20s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 .PHONY: test
-test: lint golden ## Run lint and the enforced golden cases.
+test: build lint golden ## Run lint and the enforced golden cases.
 
 .PHONY: golden
-golden: ## Enforce the golden-liquid core list (test/golden/golden-core.txt).
-	$(PYTHON) test/golden/run-golden.py --core test/golden/golden-core.txt
+golden: build ## Enforce the golden-liquid core list (test/golden/golden-core.txt).
+	$(PYTHON) test/golden/run-golden.py --awk "$(AWK)" --core test/golden/golden-core.txt
 
 .PHONY: progress
-progress: ## Report pass rate across the whole golden-liquid corpus.
-	$(PYTHON) test/golden/run-golden.py
+progress: build ## Report pass rate across the whole golden-liquid corpus.
+	$(PYTHON) test/golden/run-golden.py --awk "$(AWK)"
 
 .PHONY: build
 build: build/awkuid ## Build the single-file awkuid from src/.
@@ -35,7 +35,7 @@ build/awkuid: $(AWKUID_SRCS)
 .PHONY: lint
 lint: ## POSIX-lint the engine sources (skips until they exist).
 	@if [ -f $(MAIN)/awkuid.awk ] && command -v gawk >/dev/null 2>&1; then \
-		gawk --posix --lint $(addprefix -f ,$(AWKUID_SRCS)) </dev/null >/dev/null; \
+		gawk --posix --lint $(addprefix -f ,$(AWKUID_SRCS)) /dev/null </dev/null >/dev/null; \
 	else \
 		echo "skip lint: engine sources not present yet"; \
 	fi

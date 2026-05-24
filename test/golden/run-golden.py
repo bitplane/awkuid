@@ -18,11 +18,14 @@ import argparse
 import json
 import os
 import pathlib
+import subprocess
 import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 CORPUS = ROOT / "test/golden-liquid/golden_liquid.json"
 ENGINE = ROOT / "build/awkuid"
+AWK = None
 
 
 class EngineMissing(Exception):
@@ -33,11 +36,124 @@ def render(template, data, templates):
     """template + context(data) + partials(templates) -> output string.
 
     Raises EngineMissing if build/awkuid doesn't exist yet.
-    TODO(codex): wire the awkuid invocation per the contract above.
     """
     if not ENGINE.exists():
         raise EngineMissing()
-    raise NotImplementedError("wire awkuid invocation in render()")
+    with tempfile.TemporaryDirectory(prefix="awkuid-golden.") as tmp:
+        template_file = pathlib.Path(tmp) / "template.liquid"
+        template_file.write_text(template)
+        cmd = [AWK, "-f", str(ENGINE), str(template_file)] if AWK else [str(ENGINE), str(template_file)]
+        proc = subprocess.run(
+            cmd,
+            input=json_to_events(data),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    if proc.returncode != 0:
+        return None
+    return proc.stdout
+
+
+def event_escape(value, *, path=False):
+    value = str(value)
+    out = []
+    for ch in value:
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\b":
+            out.append("\\b")
+        elif ch == "/" and not path:
+            out.append("\\/")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def path_join(parent, key):
+    key = event_escape(key)
+    return key if parent == "" else f"{parent}/{key}"
+
+
+def scalar_tag(value):
+    if value is None:
+        return "tag:yaml.org,2002:null"
+    if isinstance(value, bool):
+        return "tag:yaml.org,2002:bool"
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return "tag:yaml.org,2002:int"
+    return "tag:yaml.org,2002:str"
+
+
+def scalar_value(value):
+    if value is None:
+        return ""
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    return str(value)
+
+
+def emit_value(lines, doc_id, path, value):
+    if isinstance(value, dict):
+        lines.append(
+            "\t".join(
+                [
+                    "MAP_START",
+                    str(doc_id),
+                    event_escape(path, path=True),
+                    "tag:yaml.org,2002:map",
+                    "",
+                ]
+            )
+        )
+        for key, child in value.items():
+            emit_value(lines, doc_id, path_join(path, key), child)
+        lines.append("\t".join(["MAP_END", str(doc_id), event_escape(path, path=True)]))
+    elif isinstance(value, list):
+        lines.append(
+            "\t".join(
+                [
+                    "SEQ_START",
+                    str(doc_id),
+                    event_escape(path, path=True),
+                    "tag:yaml.org,2002:seq",
+                    "",
+                ]
+            )
+        )
+        for index, child in enumerate(value):
+            emit_value(lines, doc_id, path_join(path, str(index)), child)
+        lines.append("\t".join(["SEQ_END", str(doc_id), event_escape(path, path=True)]))
+    else:
+        lines.append(
+            "\t".join(
+                [
+                    "SCALAR",
+                    str(doc_id),
+                    event_escape(path, path=True),
+                    scalar_tag(value),
+                    "",
+                    "plain",
+                    event_escape(scalar_value(value)),
+                ]
+            )
+        )
+
+
+def json_to_events(data):
+    lines = ["DOC_START\t0"]
+    emit_value(lines, 0, "", data)
+    lines.append("DOC_END\t0")
+    return "\n".join(lines) + "\n"
 
 
 def load_cases():
@@ -67,7 +183,10 @@ def main():
     ap = argparse.ArgumentParser(description="run golden-liquid against build/awkuid")
     ap.add_argument("--core", help="file of case names that MUST pass (enforced; exit 1 on regression)")
     ap.add_argument("--tag", action="append", default=[], help="only run cases carrying this tag")
+    ap.add_argument("--awk", help="awk executable to run build/awkuid with")
     args = ap.parse_args()
+    global AWK
+    AWK = args.awk
 
     corpus = load_cases()
     cases = corpus
