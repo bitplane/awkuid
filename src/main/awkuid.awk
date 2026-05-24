@@ -9,6 +9,10 @@ BEGIN {
         liquid_template = liquid_template (liquid_template == "" ? "" : "\n") liquid_template_line
     }
     close(liquid_template_file)
+    if (liquid_template_dir == "") {
+        liquid_template_dir = liquid_template_file
+        sub(/\/[^\/]*$/, "", liquid_template_dir)
+    }
     ARGV[1] = ""
 }
 

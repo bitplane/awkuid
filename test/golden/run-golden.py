@@ -5,14 +5,13 @@ Dev/CI dependency only (mirrors awkdown's spec runner) -- the shipped engine is
 pure awk. golden-liquid is a big JSON corpus with partials and alternate results,
 which Python loads trivially.
 
-INTEGRATION CONTRACT -- fill in render() once awkuid's CLI + context format lock:
-  - Each case's `data` (arbitrary nested/typed JSON) must reach awkuid as its
-    variable context. Current plan: the awkyaml TSV event stream on stdin.
-  - `template` is the source; `templates` is a name->source map of partials for
-    {% include %}/{% render %} (write to a temp dir, pass via -I).
-  - Proposed CLI:  awkuid -I <partials_dir> <template_file>  < <context_events>
-Until render() is wired, the harness reports "pending" and stays green so the
-fresh repo isn't red from day one.
+INTEGRATION CONTRACT:
+  - awkuid reads an awkyaml-compatible TSV event stream on stdin.
+  - The template path is argv[1].
+  - The golden runner converts fixture JSON data into that event stream directly,
+    so core tests do not depend on awkyaml or the network.
+  - `templates` partials are written beside the main template and exposed via
+    `-v liquid_template_dir=...`.
 """
 import argparse
 import json
@@ -42,7 +41,9 @@ def render(template, data, templates):
     with tempfile.TemporaryDirectory(prefix="awkuid-golden.") as tmp:
         template_file = pathlib.Path(tmp) / "template.liquid"
         template_file.write_text(template)
-        cmd = [AWK, "-f", str(ENGINE), str(template_file)] if AWK else [str(ENGINE), str(template_file)]
+        for name, body in templates.items():
+            (pathlib.Path(tmp) / f"{name}.liquid").write_text(body)
+        cmd = [AWK, "-v", f"liquid_template_dir={tmp}", "-f", str(ENGINE), str(template_file)] if AWK else [str(ENGINE), str(template_file)]
         proc = subprocess.run(
             cmd,
             input=json_to_events(data),

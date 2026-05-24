@@ -7,28 +7,41 @@ function liquid_context_load(line,    fields, event, path) {
     path = fields[3]
     if (event == "MAP_START") {
         liquid_context_type[path] = "map"
+        liquid_context_note_child(path)
     } else if (event == "SEQ_START") {
         liquid_context_type[path] = "seq"
         liquid_context_len[path] = 0
+        liquid_context_note_child(path)
     } else if (event == "SEQ_END") {
-        liquid_context_len[path] = liquid_context_seq_count[path] + 0
+        liquid_context_len[path] = liquid_context_child_count[path] + 0
     } else if (event == "SCALAR") {
         liquid_context_type[path] = "scalar"
+        liquid_context_tag[path] = fields[4]
         liquid_context_value[path] = fields[7]
-        liquid_context_note_sequence_item(path)
+        liquid_context_note_child(path)
     } else if (event == "ALIAS") {
         liquid_context_type[path] = "scalar"
         liquid_context_value[path] = ""
-        liquid_context_note_sequence_item(path)
+        liquid_context_note_child(path)
     }
 }
 
-function liquid_context_note_sequence_item(path,    parent, key) {
+function liquid_context_note_child(path,    parent, key, idx) {
+    if (path == "") {
+        return
+    }
     parent = liquid_context_parent_path(path)
     key = liquid_context_path_key(path)
-    if (liquid_context_type[parent] == "seq" && key ~ /^[0-9]+$/) {
-        if ((key + 1) > liquid_context_seq_count[parent]) {
-            liquid_context_seq_count[parent] = key + 1
+    if (liquid_context_seen_child[parent SUBSEP key]) {
+        return
+    }
+    liquid_context_seen_child[parent SUBSEP key] = 1
+    idx = liquid_context_child_count[parent] + 0
+    liquid_context_child_order[parent, idx] = key
+    liquid_context_child_count[parent] = idx + 1
+    if (key ~ /^[0-9]+$/) {
+        if ((key + 1) > liquid_context_len[parent]) {
+            liquid_context_len[parent] = key + 1
         }
     }
 }
@@ -62,10 +75,16 @@ function liquid_context_path_key(path,    parent) {
 }
 
 function liquid_context_child(path, key) {
+    if (path in liquid_context_ref) {
+        return liquid_context_child(liquid_context_ref[path], key)
+    }
     return yaml_event_path_join(path, key)
 }
 
 function liquid_context_scalar(path) {
+    if (path in liquid_context_ref) {
+        return liquid_context_scalar(liquid_context_ref[path])
+    }
     if (liquid_context_type[path] == "scalar") {
         return liquid_context_value[path]
     }
@@ -76,4 +95,64 @@ function liquid_context_scalar(path) {
         return ""
     }
     return ""
+}
+
+function liquid_context_size(path) {
+    if (path in liquid_context_ref) {
+        return liquid_context_size(liquid_context_ref[path])
+    }
+    if (path == "") {
+        return 0
+    }
+    if (liquid_context_type[path] == "scalar") {
+        return length(liquid_context_value[path])
+    }
+    if (liquid_context_type[path] == "seq") {
+        return liquid_context_len[path] + 0
+    }
+    if (liquid_context_type[path] == "map") {
+        return liquid_context_child_count[path] + 0
+    }
+    return 0
+}
+
+function liquid_context_string(path) {
+    if (path in liquid_context_ref) {
+        return liquid_context_string(liquid_context_ref[path])
+    }
+    if (liquid_context_type[path] == "scalar") {
+        return liquid_context_value[path]
+    }
+    if (liquid_context_type[path] == "map") {
+        return "{}"
+    }
+    if (liquid_context_type[path] == "seq") {
+        return liquid_context_join(path, "")
+    }
+    return ""
+}
+
+function liquid_context_join(path, sep,    i, out, child) {
+    if (path in liquid_context_ref) {
+        path = liquid_context_ref[path]
+    }
+    if (liquid_context_type[path] != "seq") {
+        return liquid_context_string(path)
+    }
+    out = ""
+    for (i = 0; i < liquid_context_len[path]; i++) {
+        child = liquid_context_child(path, i)
+        out = out (i == 0 ? "" : sep) liquid_context_string(child)
+    }
+    return out
+}
+
+function liquid_context_temp_ref(parent, idx, source,    child) {
+    child = liquid_context_child(parent, idx)
+    liquid_context_ref[child] = source
+    liquid_context_type[child] = liquid_context_type[source]
+    liquid_context_len[child] = liquid_context_len[source]
+    liquid_context_child_count[child] = liquid_context_child_count[source]
+    liquid_context_len[parent] = idx + 1
+    liquid_context_child_count[parent] = idx + 1
 }

@@ -35,7 +35,7 @@ build/awkuid: $(AWKUID_SRCS)
 .PHONY: lint
 lint: ## POSIX-lint the engine sources (skips until they exist).
 	@if [ -f $(MAIN)/awkuid.awk ] && command -v gawk >/dev/null 2>&1; then \
-		gawk --posix --lint $(addprefix -f ,$(AWKUID_SRCS)) /dev/null </dev/null >/dev/null; \
+		gawk --posix --lint -v liquid_template_dir="" $(addprefix -f ,$(AWKUID_SRCS)) /dev/null </dev/null >/dev/null; \
 	else \
 		echo "skip lint: engine sources not present yet"; \
 	fi
