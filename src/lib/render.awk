@@ -717,7 +717,7 @@ function liquid_find_matching_tag(text, open_name, close_name,    rest, offset, 
     return 0
 }
 
-function liquid_render_conditional(expr, block, invert,    rest, cond, pos, tag, body, selected, render_body) {
+function liquid_render_conditional(expr, block, invert,    rest, cond, pos, tag, raw_tag, body, selected, render_body) {
     rest = block
     cond = invert ? !liquid_condition(expr) : liquid_condition(expr)
     while (1) {
@@ -738,8 +738,12 @@ function liquid_render_conditional(expr, block, invert,    rest, cond, pos, tag,
         }
         rest = substr(rest, 3)
         pos = index(rest, "%}")
-        tag = liquid_tag_clean(substr(rest, 1, pos - 1))
+        raw_tag = substr(rest, 1, pos - 1)
+        tag = liquid_tag_clean(raw_tag)
         rest = substr(rest, pos + 2)
+        if (substr(raw_tag, length(raw_tag), 1) == "-") {
+            sub(/^[ \t\r\n]+/, "", rest)
+        }
         if (tag ~ /^elsif[ \t\r\n]/) {
             cond = liquid_condition(substr(tag, 6))
         } else if (tag ~ /^else([ \t\r\n]|$)/) {

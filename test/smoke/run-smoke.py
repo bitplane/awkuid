@@ -17,6 +17,7 @@ CASES = [
     ('{{ "January 1, 2000" | date: "%b %d, %y" }}', "Jan 01, 00"),
     ('{{ "#/! @" | url_encode }}', "%23%2F%21+%40"),
     ('{% if "a>b" > "a" %}yes{% else %}no{% endif %}', "yes"),
+    ('A{%- if false -%}\n  no\n{%- else -%}\n  yes\n{%- endif -%}B', "AyesB"),
 ]
 
 
