@@ -1,0 +1,3 @@
+# golden-liquid case names that awkuid is expected to pass (enforced by `make test`).
+# Add names here as the engine grows -- this is the ratchet (cf. awkyaml parse-core.txt).
+# Empty for now: nothing enforced until the engine exists.
